@@ -103,14 +103,17 @@ while t < 1
 %     %% check condition (5.1)
 
     %% SOLVE PC QP
-    [deltaX, deltaY] = solveQPPredictorCorrector(problem, objective, variables, constraints);
+    [deltaX, deltaY, exitQP] = solveQPPredictorCorrector(problem, objective, variables, constraints);
 
     clear problem;
     problem = problemName(p);
     [~,gradientObjective]           = problem.obj(primalInit+deltaX);
     [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX);
-    [nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
+    %[nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
+    [nextEta,Lag]  = calculateEta(problem, deltaY, gradientObjective, constraint, jacobianConstraint);
 
+    % TO DO: check why nextEta is not getting lower here !!
+    
     while( nextEta > max(currentEta,Parameters.etaMax) )
     %while ( (nextEta > 1e-6) ||  (nextEta > currentEta^1.2 && nextEta > 1e-2) )
 
@@ -125,7 +128,9 @@ while t < 1
           p       = (1 - t - deltaT)*paramInit + (t + deltaT)*paramFinal;
           numFail = numFail + 1;
           clear deltaX deltaY problem;
-          problem = problemName(p0);
+          %problem = problemName(p0);
+          clear problem;
+          problem = problemName(p);
           [objectiveFunctionValue,gradientObjective] = problem.obj(primalInit);
           [constraint,jacobianConstraint]            = problem.cons(primalInit);
           % constraints
@@ -140,14 +145,15 @@ while t < 1
 
           % solve QPPredict again  --> SOLVE PREDICTOR CORRECTOR QP HERE !
           %[deltaXp,deltaYp,exitQP] = solveQPPredict(problem, variables, constraints, deltaXc, deltaT, deltaP);
-          [deltaX, deltaY] = solveQPPredictorCorrector(problem, objective, variables, constraints);
+          [deltaX, deltaY, exitQP] = solveQPPredictorCorrector(problem, objective, variables, constraints);
           %deltaX  = deltaXc + deltaXp;
           %deltaY  = deltaYplus + deltaYp;
           clear problem;
           problem = problemName(p);
           [~,gradientObjective]           = problem.obj(primalInit+deltaX);
           [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX);
-          [nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
+          %[nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
+          [nextEta,Lag]  = calculateEta(problem, deltaY, gradientObjective, constraint, jacobianConstraint);
       end
 
     end
@@ -283,8 +289,8 @@ Parameters.maxFailure   = 50;
 %Parameters.maxFailure   = 40;
 Parameters.optValue     = 1e-6;
 Parameters.etaMin       = 1e-6;
-%Parameters.etaMax       = 1e-2;
-Parameters.etaMax       = 1e-4;
+Parameters.etaMax       = 1e-2;
+%Parameters.etaMax       = 1e-4;
 
 end
 
