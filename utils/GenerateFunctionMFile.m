@@ -58,7 +58,8 @@ nl = char(10);
    fprintf(fid, '%s', nl);
    end
 
-fid = fopen0(fileName, 'w');
+%fid = fopen0(fileName, 'w');
+fid = fopen(fileName, 'w');
 c = onCleanup(@() fclose(fid));
 
 fprintf(fid, 'function [outputArgs] = %s(inputArgs)%s', ...
