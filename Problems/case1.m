@@ -17,12 +17,12 @@ prob.dcdp = [-10; 0; 10; 20; 0; -10; -10];
 prob.name = 'Problem 1';
 prob.x = zeros(3,1);
 
-%prob.obj  = (@(x,p)(objective(x,p)));
-prob.obj  = (@(x)(objective(x,p)));
-%prob.cons = (@(x,p)(constraint(x,p)));
-prob.cons = (@(x)(constraint(x,p)));
-%prob.hess = (@(x,y,p)(hessian(x,y,p)));
-prob.hess = (@(x,y)(hessian(x,y,p)));
+prob.obj  = (@(x,p)(objective(x,p)));
+%prob.obj  = (@(x)(objective(x,p)));
+prob.cons = (@(x,p)(constraint(x,p)));
+%prob.cons = (@(x)(constraint(x,p)));
+prob.hess = (@(x,y,p)(hessian(x,y,p)));
+%prob.hess = (@(x,y)(hessian(x,y,p)));
 %prob.hc   = (@(x,y,p)(hessianConstraints(x,y,p)));
 prob.chess = (@(x)(conhess(x,p)));
 end

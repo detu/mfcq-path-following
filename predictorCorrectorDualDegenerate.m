@@ -35,8 +35,8 @@ equalityIndex   = 1:me;
 inequalityIndex = me+1:m;
 numFail         = 0;             % set counter for fail attempt
 %% initial estimate of Active Set
-[objectiveFunctionValue,gradientObjective] = problem.obj(primalInit);
-[constraint,jacobianConstraint]            = problem.cons(primalInit);
+[objectiveFunctionValue,gradientObjective] = problem.obj(primalInit,p);
+[constraint,jacobianConstraint]            = problem.cons(primalInit,p);
 [currentEta,~]                             = calculateEta(problem, dualInit, gradientObjective, constraint, jacobianConstraint);
 [activeSet, estimateActive,estimateInactive] = estimateActiveSet(dualInit, constraint, equalityIndex, inequalityIndex, currentEta, Parameters);
 
@@ -74,15 +74,15 @@ while t < 1
     clear p0 problem;
     p0      = (1 - t)*paramInit + t*paramFinal;
     problem = problemName(p0);
-    [objectiveFunctionValue,gradientObjective] = problem.obj(primalInit);
-    [constraint,jacobianConstraint]            = problem.cons(primalInit);
+    [objectiveFunctionValue,gradientObjective] = problem.obj(primalInit,p0);
+    [constraint,jacobianConstraint]            = problem.cons(primalInit,p0);
     [currentEta,~]                             = calculateEta(problem, dualInit, gradientObjective, constraint, jacobianConstraint);
     %% update parameter
     clear p;
     p  = (1 - t - deltaT)*paramInit + (t + deltaT)*paramFinal;
 
     %% SOLVE CorrectStep
-    [deltaXc,deltaYplus] = solveCorrectStep(problem, variables, constraints, objective);
+    [deltaXc,deltaYplus] = solveCorrectStep(problem, variables, constraints, objective, p0);
 
     % check dual variable for inequality constraint if there is any less
     % than zero
@@ -95,7 +95,7 @@ while t < 1
     end
 
     %% SOLVE QPPredict
-    [deltaXp,deltaYp, exitQP] = solveQPPredict(problem, variables, constraints, deltaXc, deltaT, deltaP);
+    [deltaXp,deltaYp, exitQP] = solveQPPredict(problem, variables, constraints, deltaXc, deltaT, deltaP, p0);
 
     % set solution delta_x and delta_y = [delta_xp,delta_yp] + [delta_xc,
     % delta_yc]
@@ -105,8 +105,8 @@ while t < 1
     %% check condition (5.1)
     clear problem;
     problem = problemName(p);
-    [~,gradientObjective]           = problem.obj(primalInit+deltaX);
-    [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX);
+    [~,gradientObjective]           = problem.obj(primalInit+deltaX, p);
+    [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX, p);
     [nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
 
     while( nextEta > max(currentEta,Parameters.etaMax) )
@@ -124,8 +124,8 @@ while t < 1
           numFail = numFail + 1;
           clear deltaX deltaY problem;
           problem = problemName(p0);
-          [objectiveFunctionValue,gradientObjective] = problem.obj(primalInit);
-          [constraint,jacobianConstraint]            = problem.cons(primalInit);
+          [objectiveFunctionValue,gradientObjective] = problem.obj(primalInit, p);
+          [constraint,jacobianConstraint]            = problem.cons(primalInit, p);
           % constraints
           constraints.value    = constraint;
           constraints.eqInd    = estimateActive;
@@ -137,13 +137,13 @@ while t < 1
           objective.gradient   = gradientObjective;
 
           % solve QPPredict again
-          [deltaXp,deltaYp,exitQP] = solveQPPredict(problem, variables, constraints, deltaXc, deltaT, deltaP);
+          [deltaXp,deltaYp,exitQP] = solveQPPredict(problem, variables, constraints, deltaXc, deltaT, deltaP, p);
           deltaX  = deltaXc + deltaXp;
           deltaY  = deltaYplus + deltaYp;
           clear problem;
           problem = problemName(p);
-          [~,gradientObjective]           = problem.obj(primalInit+deltaX);
-          [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX);
+          [~,gradientObjective]           = problem.obj(primalInit+deltaX,p);
+          [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX,p);
           [nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
       end
 
@@ -208,7 +208,7 @@ while t < 1
     fprintf('Iter = %6g    Eta = %5.2e    t =  %3.1e    deltaT = %3.1e    QPflag=%d \n', numIter, currentEta, t, deltaT, exitQP);
 end
 
-%% PLOT PRIMAL, DUAL, and ETA !!!
+%% PLOT PRIMAL, DUAL, ETA, and deltaT !!!
 keyboard;
 end
 
@@ -259,13 +259,13 @@ activeConstraint = union(equalityIndex,find(constraint < Eta^(Parameters.gamma))
 activeSet        = union(estimateActive,activeConstraint);
 end
 
-function [deltaXc,deltaYc] = solveCorrectStep(problem, variables, constraints, objective)
+function [deltaXc,deltaYc] = solveCorrectStep(problem, variables, constraints, objective, p)
 n       = problem.n;
 m       = problem.m;
 me      = problem.me;
 eqs     = 1:me;
-%H       = problem.hess(variables.primal,variables.dual,p);
-H       = problem.hess(variables.primal,variables.dual);
+H       = problem.hess(variables.primal,variables.dual,p);
+%H       = problem.hess(variables.primal,variables.dual);
 J       = constraints.jacobian;
 g       = objective.gradient;
 y       = variables.dual;
@@ -283,14 +283,14 @@ deltaYc = zeros(m,1);
 deltaYc([eqs;epsA]) = yCS;
 end
 
-function [deltaXp,deltaYp, exitflag] = solveQPPredict(problem, variables, constraints, deltaXc, deltaT, deltaP)
+function [deltaXp,deltaYp, exitflag] = solveQPPredict(problem, variables, constraints, deltaXc, deltaT, deltaP, p)
 
 n       = problem.n;
 m       = problem.m;
 me      = problem.me;
 eqs     = 1:me;
-%H       = problem.hess(variables.primal,variables.dual,p);
-H       = problem.hess(variables.primal,variables.dual);
+H       = problem.hess(variables.primal,variables.dual,p);
+%H       = problem.hess(variables.primal,variables.dual);
 HC      = problem.chess(variables.primal);
 dcdp    = problem.dcdp;
 J       = constraints.jacobian;

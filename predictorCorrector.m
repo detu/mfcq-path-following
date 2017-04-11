@@ -108,15 +108,15 @@ while t < 1
     problem = problemName(p);
     [~,gradientObjective]           = problem.obj(primalInit+deltaX,p);
     [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX,p);
-    % constraints
-    constraints.value    = constraint;
-    constraints.eqInd    = estimateActive;
-    constraints.inInd    = estimateInactive;
-    constraints.jacobian = jacobianConstraint;
-    constraints.active   = activeSet;
-    % objective function
-    objective.value      = objectiveFunctionValue;
-    objective.gradient   = gradientObjective;
+%     % constraints
+%     constraints.value    = constraint;
+%     constraints.eqInd    = estimateActive;
+%     constraints.inInd    = estimateInactive;
+%     constraints.jacobian = jacobianConstraint;
+%     constraints.active   = activeSet;
+%     % objective function
+%     objective.value      = objectiveFunctionValue;
+%     objective.gradient   = gradientObjective;
     [nextEta,Lag]  = calculateEta(problem, deltaY, gradientObjective, constraint, jacobianConstraint);
     
     %while( nextEta >= max(currentEta,Parameters.etaMax) )
@@ -151,15 +151,15 @@ while t < 1
         %problem = problemName(p);
         [~,gradientObjective]           = problem.obj(primalInit+deltaX,p);
         [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX,p);
-        % constraints
-        constraints.value    = constraint;
-        constraints.eqInd    = estimateActive;
-        constraints.inInd    = estimateInactive;
-        constraints.jacobian = jacobianConstraint;
-        constraints.active   = activeSet;
-        % objective function
-        objective.value      = objectiveFunctionValue;
-        objective.gradient   = gradientObjective;
+%         % constraints
+%         constraints.value    = constraint;
+%         constraints.eqInd    = estimateActive;
+%         constraints.inInd    = estimateInactive;
+%         constraints.jacobian = jacobianConstraint;
+%         constraints.active   = activeSet;
+%         % objective function
+%         objective.value      = objectiveFunctionValue;
+%         objective.gradient   = gradientObjective;
         
         %[nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
         [nextEta,Lag]  = calculateEta(problem, deltaY, gradientObjective, constraint, jacobianConstraint);
