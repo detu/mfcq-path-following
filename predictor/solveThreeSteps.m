@@ -41,8 +41,8 @@ deltaX = deltaXc + deltaXp;
 deltaY = deltaYplus + deltaYp;
 
 % Calculate new Eta 
-xCurrent    = x_init + deltaX;
-yCurrent    = y_init.lam_g + deltaY;
+xCurrent       = x_init + deltaX;
+yCurrent.lam_g = y_init.lam_g + deltaY;
 flagDt      = 0;
 [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(xCurrent,yCurrent,p, N);
 [newEta, z] = computeEta(Jeq, g, yCurrent, cin);
@@ -55,6 +55,10 @@ deltaT      = updateDeltaT(oldEta, newEta, delta_t);
 % Third: Jump Step
 [y_init,exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, y_init, step, z);
 
+
+% set dummy variables for time being
+qp_exit   = 1;
+elapsedqp = 1;
 
 end
 
