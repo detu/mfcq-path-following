@@ -19,35 +19,36 @@ format long;
 
 global N;
 % number of mpc iteration
-mpciterations = 150;
+%mpciterations = 150;
+mpciterations = 2;
 % number of prediction horizon
 N             = 30;  
 % sampling time
 T             = 1;  % [minute]
 % initial controls (different initial conditions)
 %load Xinit40.mat;  
-load Xinit32.mat;
+%load Xinit32.mat;
 %load Xinit29.mat;  
-%load Xinit28.mat;
+load Xinit28.mat;
 %load Xinit30.mat
 %load Xinit31.mat;
 %u0            = Xinit40(85:89);
 %u0            = Xinit29(85:89);
-u0            = Xinit32(85:89);
-%u0            = Xinit28(85:89);
+%u0            = Xinit32(85:89);
+u0            = Xinit28(85:89);
 u0            = repmat(u0,1,N);
 % get initial measurement (states) at time T = 0.
 tmeasure      = 0.0;
 %xmeasure      = Xinit40(1:84);
 %xmeasure      = Xinit29(1:84);
-xmeasure      = Xinit32(1:84);
-%xmeasure      = Xinit28(1:84);
+%xmeasure      = Xinit32(1:84);
+xmeasure      = Xinit28(1:84);
 
 % either call iNMPC 
-%[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 
 % or pf-NMPC
-[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+%[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
  
 
 keyboard;
@@ -273,8 +274,8 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     x_min =  zeros(84,1);  % try without epsilon here, later put epsilon
     x_max =  ones(84,1);
     
-%     x_max(1)  = xB_max;
-%     x_max(84) = 0.7;
+    x_max(1)  = xB_max;
+    x_max(84) = 0.7;
     
     % Control bounds
     u_min = [0.1; 0.1; 0.1; 0.1; 0.1];
@@ -458,11 +459,11 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
             Xkj{j} = MX.sym(['X_' num2str((iter-1)*nk+k) '_' num2str(j)], nx);
             w      = {w{:}, Xkj{j}};
             lbw    = [lbw; x_min];
-            %ubw    = [ubw; x_max];
-            x_maxEnd       =  ones(84,1);
-            x_maxEnd(1,1)  = 0.1;
-            x_maxEnd(84,1) = 0.7;
-            ubw = [ubw; x_maxEnd];
+            ubw    = [ubw; x_max];
+%             x_maxEnd       =  ones(84,1);
+%             x_maxEnd(1,1)  = 0.1;
+%             x_maxEnd(84,1) = 0.7;
+%             ubw = [ubw; x_maxEnd];
             w0     = [w0; x(iter+1,:)'];
             count  = count + 1;
         end
@@ -492,11 +493,11 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         Xk  = MX.sym(['X_' num2str((iter-1)*nk+k)], nx);
         w   = {w{:}, Xk};
         lbw = [lbw; x_min];
-%         ubw = [ubw; x_max];
-        x_maxEnd       =  ones(84,1);
-        x_maxEnd(1,1)  = 0.1;
-        x_maxEnd(84,1) = 0.7;
-        ubw = [ubw; x_maxEnd];
+        ubw = [ubw; x_max];
+%         x_maxEnd       =  ones(84,1);
+%         x_maxEnd(1,1)  = 0.1;
+%         x_maxEnd(84,1) = 0.7;
+%         ubw = [ubw; x_maxEnd];
         w0  = [w0; x(iter+1,:)'];
         count  = count + 1;
 
@@ -513,11 +514,11 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         gamma  = 1;
 
         
-        % compute rotated cost function
-        fm  = f(Xk,Uk);
-        % load Lagrange multipliers from steady-state optimization
-        load LamdaCstrDist.mat; % lamda
-        Jmodel = lamda'*fm;
+%         % compute rotated cost function
+%         fm  = f(Xk,Uk);
+%         % load Lagrange multipliers from steady-state optimization
+%         load LamdaCstrDist.mat; % lamda
+%         Jmodel = lamda'*fm;
         
         J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon;
     end

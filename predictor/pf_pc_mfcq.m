@@ -16,8 +16,7 @@ function [x_init, y_init, elapsedqp] = pf_pc_mfcq(problem, p_init, p_final, x_in
 
 
 % TO DO:
-% 1. implement predictor-corrector QP with eta as stopping criteria
-% 2. add LP solver 
+% 1. Modify Lagrangian to include bound constraints !
 
 clear prob;
 sym pp;
@@ -25,9 +24,6 @@ p       = p_init;
 theprob = @(pp)problem(pp);
 prob    = theprob(p);
 t       = 0;
-alpha_2 = 0.5;
-% number of iteration
-iter = 0;
 elapsedqp = 0;
 numX    = size(x_init,1);
 x0      = zeros(numX,1);   
@@ -44,7 +40,7 @@ flagDt = 0;
 [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(x_init,y_init,p, N);    % obtain derivatives information
 [oldEta, ~]                 = computeEta(Jeq, g, y_init, cin);
 
-while (t <= 1)
+while (t < 1)
     
     % calculate step s
     tk   = t + delta_t;
@@ -53,24 +49,33 @@ while (t <= 1)
     
     % update bound constraint
     if(~isempty(lb_init))
-        lb = lb_init - x_init; % (0 - 0.0999)
-        ub = ub_init - x_init; %(0.1 - 0.0999)
+        lb = lb_init - x_init; 
+        ub = ub_init - x_init; 
     else
         lb = [];
         ub = [];
     end
 
     % solve MFCQ predictor-corrector 
-    [x_init, y_init, qp_run, deltaT, newEta] = solveThreeSteps(prob, p_init, x_init, y_init, step, lb, ub, N, x0, delta_t, oldEta);  % supply initial guess
+    [x_init, y_init, qp_run, deltaT, newEta, success, p_t] = solveThreeSteps(prob, p_init, p_final, x_init, y_init, step, lb, ub, lb_init, ub_init, N, x0, t, delta_t, p_0, p_t, oldEta);  % supply initial guess
     elapsedqp = elapsedqp + qp_run;
     
-    % update t
-    t = t + deltaT;
-    
-    % update p_init (success or fail ?)
-    
-    % update Eta
-    
+    if (success == 1)
+        
+        %update t
+        t = t + deltaT;
+        
+        %update deltaT
+        delta_t = deltaT;
+        
+        % update p_init (success or fail ?)
+        p_init = p_t;
+        
+        % update Eta
+        oldEta = newEta;
+    else
+        keyboard;
+    end
     
 %     if (qp_exit < 0) % QP is infeasible
 %         

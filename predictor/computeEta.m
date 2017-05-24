@@ -14,7 +14,9 @@ function [Eta, z] = computeEta(Jeq, g, y, cin)
 
 % only equality constraints 
 % compute Lagrangian
-z       = g - Jeq'*y.lam_g;
+%z       = g - Jeq'*y.lam_g;
+%z       = g + Jeq'*y.lam_g;
+z       = g + Jeq'*y.lam_g + y.lam_x;
 stackLC = [cin;z];
 Eta     = norm(stackLC,inf);
 

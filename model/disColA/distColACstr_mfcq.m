@@ -164,7 +164,7 @@ function [f,g,H,Lxp,cst,J,cp,Jeq,dpe,Hobj,Hc] = objective(x,y,p,N)
     
     % construct Lagrangian
     %lag_expr = obj + y'*cons;
-    lag_expr = obj + y.lam_g'*cons;
+    lag_expr = obj + y.lam_g'*cons;  % ! CHANGE THIS TO INCLUDE BOUND CONSTRAINTS !
     %lag_expr = obj - y.lam_g'*cons;
     
     g    = f.gradient();
@@ -192,6 +192,7 @@ function [f,g,H,Lxp,cst,J,cp,Jeq,dpe,Hobj,Hc] = objective(x,y,p,N)
             Hc{:,:,i} = sparse(Hci(x));
         end
         %toc;
+        save Hc.mat Hc;
     else
         Hc = [];
     end
