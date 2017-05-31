@@ -80,7 +80,7 @@ while t < 1
     %% update parameter
     clear p;
     p  = (1 - t - deltaT)*paramInit + (t + deltaT)*paramFinal;
-
+    
     %% SOLVE CorrectStep
     [deltaXc,deltaYplus] = solveCorrectStep(problem, variables, constraints, objective, p0);
 
@@ -109,7 +109,11 @@ while t < 1
     [constraint,jacobianConstraint] = problem.cons(primalInit+deltaX, p);
     [nextEta,Lag]  = calculateEta(problem, dualInit+deltaY, gradientObjective, constraint, jacobianConstraint);
 
-    while( nextEta > max(currentEta,Parameters.etaMax) )
+    
+    %% testing with new stopping criteria
+    %while (nextEta > 1e-4) ||  (nextEta > currentEta^1.2 && nextEta > 1e-2) || ( nextEta > currentEta)
+    while (nextEta > 1e-4) || ( nextEta > currentEta)
+    %while( nextEta > max(currentEta,Parameters.etaMax) )
     %while ( (nextEta > 1e-6) ||  (nextEta > currentEta^1.2 && nextEta > 1e-2) )
 
       if numFail > Parameters.maxFailure
@@ -225,6 +229,7 @@ Parameters.optValue     = 1e-6;
 Parameters.etaMin       = 1e-6;
 %Parameters.etaMax       = 1e-2;
 Parameters.etaMax       = 1e-4;
+%Parameters.etaMax       = 1e-6;
 
 end
 

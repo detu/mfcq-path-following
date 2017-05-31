@@ -45,10 +45,10 @@ tmeasure      = 0.0;
 xmeasure      = Xinit28(1:84);
 
 % either call iNMPC 
-[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+%[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 
 % or pf-NMPC
-%[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
  
 
 keyboard;
