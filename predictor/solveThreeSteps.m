@@ -35,6 +35,8 @@ if isempty(Hc)
 end
 
 
+
+%% TO BE FIXED !!!: CorrectStep is at p=p0!
 % First: Corrector Step
 [deltaXc,deltaYplus]      = solveCorrectStep(H, Jeq, g, cin, y_init);
 
@@ -63,6 +65,9 @@ while (newEta > max(0.2,oldEta))  % EtaMax = 1e-2, should be 1e-6?
     % decrease step
     delta_t = 0.6*delta_t;
     tk      = t + delta_t;
+    
+    % define p_0 here ! (look at Slava's code!)
+    
     p_t     = (1 - tk)*p_0 + tk*p_final;
     step    = p_t - p;
     
@@ -223,13 +228,22 @@ b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x];
 % A        = [Jeq';-Jeq'];
 %b        = [abs(z) + g + y.lam_x; abs(z) - g - y.lam_x];
 % option   = optimoptions('linprog','Algorithm','dual-simplex','Display','off');
-option = cplexoptimset;
-option.Display = 'on';
-startlp  = tic;
+% option = cplexoptimset;
+% option.Display = 'on';
+% 
 %[lpSol,~,exitflag] = linprog(f, A, b, [], [], lb, ub, y.lam_g, option );
 %[lpSol,~,exitflag] = linprog(f, A, b, [], [], lb, ub, [], option );
 
-[lpSol,~,exitflag] = cplexlp(f, A, b, [], [], lb, ub, [], option );
+%option  = cplexoptimset('Display', 'on', 'Algorithm', 'dual');
+% reference for CLPLEX option: http://www.pserc.cornell.edu/matpower/docs/ref/matpower5.0/cplex_options.html
+option          = cplexoptimset('cplex');
+option.Display  = 'iter';
+option.lpmethod = 1;
+option.advance  = 1;
+option.simplex.limits.iterations = 10000;
+
+startlp = tic;
+[lpSol,~,exitflag] = cplexlp(f, A, b, [], [], lb, ub, y.lam_g, option );
 
 elapsedlp = toc(startlp);
 % lpSol     = -lpSol; % different sign !

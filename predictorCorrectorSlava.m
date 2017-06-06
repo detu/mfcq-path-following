@@ -129,7 +129,9 @@ while t < 1
         
         %if( nextEta <= max(currentEta,Parameters.etaMax) )
         %if (nextEta <= 1e-6) ||  (nextEta <= currentEta^1.2 && nextEta < 1e-2)
-        if (nextEta <= Parameters.etaMax) ||  (nextEta <= currentEta^1.4 && nextEta < max(1e-2,etamax) || (nextEta < etamax) )
+        %if (nextEta <= Parameters.etaMax) ||  (nextEta <= currentEta^1.4 && nextEta < max(1e-2,etamax) || (nextEta < etamax) )
+        %if nextEta <= max((Parameters.etaMax),etamax) ||  (nextEta <= currentEta^1.4 && nextEta < max(1e-2,etamax)) 
+        if nextEta <= max((Parameters.etaMax),etamax)
             
             if numFail > Parameters.maxFailure
                 % check failing counter
@@ -254,9 +256,9 @@ Parameters.maxFailure   = 50;
 %Parameters.maxFailure   = 40;
 Parameters.optValue     = 1e-6;
 Parameters.etaMin       = 1e-6;
-Parameters.etaMax       = 1e-2;
+%Parameters.etaMax       = 1e-2;
 %Parameters.etaMax       = 1e-4;
-%Parameters.etaMax       = 0.05;
+Parameters.etaMax       = 0.05;
 
 end
 

@@ -40,6 +40,9 @@ flagDt = 0;
 [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(x_init,y_init,p, N);    % obtain derivatives information
 [oldEta, ~]                 = computeEta(Jeq, g, y_init, cin);
 
+%% CHANGE THE ALGORITHM !
+% FIST CHECK oldEta value !
+
 while (t < 1)
     
     % calculate step s
