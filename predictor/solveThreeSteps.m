@@ -1,4 +1,4 @@
-function [x_init, y_init, qp_exit, deltaT, newEta, success, p_t] = solveThreeSteps(prob, p, p_final, x_init, y_init, step, lb, ub, lb_init, ub_init, N, x0, t, delta_t, p_0, p_t, oldEta)
+function [x_init, y_init, qp_exit, delta_t, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta)
 %SOLVETHREESTEPS Summary of this function goes here
 % 
 % Solve 3 step described in MFCQ paper  
@@ -21,100 +21,75 @@ function [x_init, y_init, qp_exit, deltaT, newEta, success, p_t] = solveThreeSte
 
 % Derivatis w.r.t to deltaT can be computed ONE TIME.
 global flagDt mpciter;
-
+etamax  = oldEta;
+success = 0;
 if ((mpciter == 1) && (t == 0))
     flagDt = 1;
 else
     flagDt = 0;
     %load Hc.mat;
 end
-% obtain derivatives information
-[~,g,H,Lxp,cin,~,~,Jeq,dpe,~,Hc] = prob.obj(x_init,y_init,p, N);
-if isempty(Hc)
-    load Hc.mat;
-end
 
-
-
-%% TO BE FIXED !!!: CorrectStep is at p=p0!
-% First: Corrector Step
-[deltaXc,deltaYplus]      = solveCorrectStep(H, Jeq, g, cin, y_init);
-
-% Second: Predictor
-[deltaXp,deltaYp, exitQP] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc);
-
-% Sum up steps from Corrector and Predictor
-deltaX = deltaXc + deltaXp;
-deltaY = deltaYplus + deltaYp.lam_g;
-
-% Calculate new Eta 
-xCurrent       = x_init + deltaX;
-yCurrent.lam_g = y_init.lam_g + deltaY;
-yCurrent.lam_x = y_init.lam_x + deltaYp.lam_x;
-%yCurrent.lam_x = y_init.lam_x;
-% yCurrent.lam_g = deltaY;
-% yCurrent.lam_x = deltaYp.lam_x;
-flagDt         = 0;
-[~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(xCurrent,yCurrent,p, N);
-[newEta, z] = computeEta(Jeq, g, yCurrent, cin);
-
-% Checking condition (5.1) in the paper !!!
-success = 0;
-while (newEta > max(0.2,oldEta))  % EtaMax = 1e-2, should be 1e-6?
+if oldEta > 1
+    % decrease deltaT
+     delta_t = 0.6*delta_t;
+else
+    % proceed with everything... 
     
-    % decrease step
-    delta_t = 0.6*delta_t;
-    tk      = t + delta_t;
-    
-    % define p_0 here ! (look at Slava's code!)
-    
-    p_t     = (1 - tk)*p_0 + tk*p_final;
-    step    = p_t - p;
-    
-    % update bound constraint
-    if(~isempty(lb_init))
-        lb = lb_init - deltaX; 
-        ub = ub_init - deltaX; 
-    else
-        lb = [];
-        ub = [];
+    % obtain derivatives information
+    [~,g,H,Lxp,cin,~,~,Jeq,dpe,~,Hc] = prob.obj(x_init,y_init,p_0, N);
+    if isempty(Hc)
+        load Hc.mat;
     end
     
-    % solve Predictor
-    [deltaXp,deltaYp, exitQP] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc);
+    % First: Corrector Step
+    [deltaXc,deltaYplus]      = solveCorrectStep(H, Jeq, g, cin, y_init);
     
-    % Sum up steps from Corrector and Predictor
-    deltaX = deltaXc + deltaXp;
-    deltaY = deltaYplus + deltaYp.lam_g;
+    % Second: Predictor
+    [deltaXp,deltaYp, qp_exit] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc);
     
-    % Calculate new Eta
-    xCurrent       = x_init + deltaX;
-    yCurrent.lam_g = y_init.lam_g + deltaY;
+    
+    % Calculate new Eta 
+    xCurrent       = x_init + deltaXc + deltaXp;
+    yCurrent.lam_g = y_init.lam_g + deltaYplus + deltaYp.lam_g;
     yCurrent.lam_x = y_init.lam_x + deltaYp.lam_x;
-    %yCurrent.lam_g = deltaY;
     flagDt         = 0;
-    [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(xCurrent,yCurrent,p, N);
+    [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(xCurrent,yCurrent,p_t, N);
     [newEta, z] = computeEta(Jeq, g, yCurrent, cin);
+    
+    % Checking condition (5.1)
+    if newEta <= max(0.2,etamax)   % Parameters.etaMax = 0.2
+        % Update primal and dual variables 
+        deltaX = deltaXc + deltaXp;
+        deltaY = deltaYplus + deltaYp.lam_g;
+        
+        % Update deltaT  
+        delta_t = updateDeltaT(oldEta, newEta, delta_t);
+        
+        % Since the dynamics are equality constraints, all constraints are
+        % active. NOTE: Bound constraints will be treated later! 
+        
+        % Third: Jump Step
+        [lpSol, exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z);
+        if exitLP >= 0
+            y_init.lam_g = lpSol;
+            y_init.lam_x = yCurrent.lam_x; % Is it Correct? 
+        end
+        
+        success = 1;
+        x_init  = x_init + deltaX;
+        qp_exit = 1;
+        
+        % Update etaMax
+        if newEta > etamax
+            etamax = newEta;
+        end
+        
+    else
+        % decrease deltaT
+        delta_t = 0.6*delta_t;
+    end
 end
-success = 1;
-
-% Update deltaT  
-deltaT      = updateDeltaT(oldEta, newEta, delta_t);
-
-% Need not to update active-set since we have equality constraint
-
-% Third: Jump Step
-%[y_init.lam_g,exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, y_init, step, z);
-[y_init.lam_g,exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z);
-
-% update y_init.lam_x
-y_init.lam_x = yCurrent.lam_x; % Is it Correct? 
-% update y_init.lam_x just for the active bound constraint... 
-
-% set dummy variables for time being
-qp_exit   = 1;
-%elapsedqp = 1;
-x_init    = xCurrent;
 
 end
 
@@ -131,7 +106,7 @@ dYplus = solCorrectStep(m+1:end);
 
 end
 
-function [dXp, dYp, qp_exit] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc)
+function [dXp, dYp, elapsedqp] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc)
 % QP consists of equality and bound constraints 
 
 % QP setup

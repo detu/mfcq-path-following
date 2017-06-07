@@ -32,13 +32,11 @@ if (verbose_level)
     fprintf('iteration  delta_t        t        Success\n');
 end
 
-p_0 = p_init;
+%p_0 = p_init;
 
 % compute initial Eta
 global flagDt;
-flagDt = 0;
-[~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(x_init,y_init,p, N);    % obtain derivatives information
-[oldEta, ~]                 = computeEta(Jeq, g, y_init, cin);
+flagDt = 0;   % THINK ABOUT THIS LATTER!
 
 %% CHANGE THE ALGORITHM !
 % FIST CHECK oldEta value !
@@ -46,9 +44,13 @@ flagDt = 0;
 while (t < 1)
     
     % calculate step s
-    tk   = t + delta_t;
-    p_t  = (1 - tk)*p_0 + tk*p_final;
-    step = p_t - p_init;
+    p_0  = (1 - t)*p_init + t*p_final;
+    p_t  = (1 - t - delta_t)*p_init + (t + delta_t)*p_final; 
+    step = p_t - p_0;
+    
+    % compute the residual optimality at p_0
+    [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(x_init,y_init,p_0, N);    % obtain derivatives information
+    [oldEta, ~]                 = computeEta(Jeq, g, y_init, cin);
     
     % update bound constraint
     if(~isempty(lb_init))
@@ -60,7 +62,7 @@ while (t < 1)
     end
 
     % solve MFCQ predictor-corrector 
-    [x_init, y_init, qp_run, deltaT, newEta, success, p_t] = solveThreeSteps(prob, p_init, p_final, x_init, y_init, step, lb, ub, lb_init, ub_init, N, x0, t, delta_t, p_0, p_t, oldEta);  % supply initial guess
+    [x_init, y_init, qp_run, deltaT, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta);  % supply initial guess
     elapsedqp = elapsedqp + qp_run;
     
     if (success == 1)
@@ -72,10 +74,10 @@ while (t < 1)
         delta_t = deltaT;
         
         % update p_init (success or fail ?)
-        p_init = p_t;
+        %p_init = p_t;
         
         % update Eta
-        oldEta = newEta;
+        %oldEta = newEta;
     else
         keyboard;
     end
