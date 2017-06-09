@@ -79,6 +79,9 @@ while (t < 1)
         % update Eta
         %oldEta = newEta;
     else
+        % update deltaT
+        delta_t = deltaT;
+        % debug
         keyboard;
     end
     

@@ -20,7 +20,9 @@ format long;
 global N;
 % number of mpc iteration
 %mpciterations = 150;
-mpciterations = 2;
+%mpciterations = 2;
+%mpciterations = 5;
+mpciterations = 20;
 % number of prediction horizon
 N             = 30;  
 % sampling time

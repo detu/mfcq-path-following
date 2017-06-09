@@ -32,7 +32,10 @@ end
 
 if oldEta > 1
     % decrease deltaT
-     delta_t = 0.6*delta_t;
+    delta_t = 0.6*delta_t;
+    qp_exit = 0;
+    % debug 
+    keyboard;
 else
     % proceed with everything... 
     
@@ -88,6 +91,9 @@ else
     else
         % decrease deltaT
         delta_t = 0.6*delta_t;
+        qp_exit = 0;
+        % debug
+        keyboard;
     end
 end
 
@@ -213,9 +219,13 @@ b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x];
 % reference for CLPLEX option: http://www.pserc.cornell.edu/matpower/docs/ref/matpower5.0/cplex_options.html
 option          = cplexoptimset('cplex');
 option.Display  = 'iter';
+%option.Display  = 'none';
 option.lpmethod = 1;
 option.advance  = 1;
-option.simplex.limits.iterations = 10000;
+option.simplex.pgradient = -1; %OK - 230 sec. 116354 iterations
+%option.simplex.pgradient = 3; %OK - 211 sec. 60198 iterations
+%option.simplex.limits.iterations = 30100;
+%option.simplex.limits.iterations = 32000;
 
 startlp = tic;
 [lpSol,~,exitflag] = cplexlp(f, A, b, [], [], lb, ub, y.lam_g, option );

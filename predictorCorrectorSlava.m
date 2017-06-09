@@ -357,6 +357,7 @@ Aeq    = [JacHessianXc(eqs,:);JacHessianXc(epsA,:)];
 beq    = [-dcdp(eqs,:);-dcdp(epsA,:)]*(deltaT*deltaP);
 grad   = zeros(n,1);
 option = optimset('Display','off','Algorithm','active-set');
+%option = optimset('Display','off');
 [deltaXp,~,exitflag,~,lambda] = quadprog(H,grad,A,b,Aeq,beq,[],[], variables.primal, option);
 deltaYp             = zeros(m,1);
 deltaYp(epsF)       = (lambda.ineqlin(1:(length(epsF))));
@@ -386,7 +387,11 @@ ub       = Inf*ones(length(Act),1);
 f        = dcdp(Act,:)*deltaT*deltaP;
 A        = [J(Act,:)';-J(Act,:)'];
 b        = [g+abs(z);abs(z)-g];
-option   = optimoptions('linprog','Algorithm','dual-simplex','Display','off');
+%option   = optimoptions('linprog','Algorithm','dual-simplex','Display','off');
+%option   = optimoptions('linprog','Algorithm','simplex','Display','off');
+option   = optimoptions('linprog','Algorithm','simplex','Display','iter');
+%option   = optimoptions('linprog','Algorithm','active-set','Display','iter');
 [y,~,exitflag] = linprog(f, A, b, [],[],lb,ub,variables.dual(Act),option );
+%[y,~,exitflag] = linprog(f, A, b, [],[],lb,ub,[],option );
 end
 
