@@ -35,6 +35,7 @@ if oldEta > 1
     delta_t = 0.6*delta_t;
     qp_exit = 0;
     % debug 
+    fprintf("keyboard debug \n");
     keyboard;
 else
     % proceed with everything... 
@@ -61,7 +62,7 @@ else
     [newEta, z] = computeEta(Jeq, g, yCurrent, cin);
     
     % Checking condition (5.1)
-    if newEta <= max(0.2,etamax)   % Parameters.etaMax = 0.2
+    if newEta <= max(5.0,etamax)   % Parameters.etaMax = 5.0
         % Update primal and dual variables 
         deltaX = deltaXc + deltaXp;
         deltaY = deltaYplus + deltaYp.lam_g;
@@ -93,6 +94,7 @@ else
         delta_t = 0.6*delta_t;
         qp_exit = 0;
         % debug
+        fprintf("keyboard debug \n");
         keyboard;
     end
 end
@@ -116,8 +118,8 @@ function [dXp, dYp, elapsedqp] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, l
 % QP consists of equality and bound constraints 
 
 % QP setup
-% A   = [];
-% b   = [];
+A   = [];
+b   = [];
 f   = [];
 
 % Only Equality Constraint
@@ -157,6 +159,25 @@ end
 dYp.lam_x = -Result.v_k(1:numX);
 dYp.lam_g = -Result.v_k(numX+1:end);
 
+% % QUADPROG setup
+% %option = optimset('Display','off','Algorithm','active-set');
+% option = optimset('Display','iter','Algorithm','interior-point-convex');
+% startqp  = tic;
+% [dXp, ~,  exitflag, ~, lambda] = quadprog(H, f, A, b, Aeq, -beq, lb, ub, [], option);
+% elapsedqp = toc(startqp);
+% fprintf('QP solver runtime: %f\n',elapsedqp);
+% dYp.lam_g = -lambda.eqlin;
+% dYp.lam_x = -lambda.lower - lambda.upper;
+
+% % QPC setup
+% dsp = 1;
+% startqp  = tic;
+% [dXp, error, lambda] = qpip(full(H), zeros(numX,1), [], [], Aeq, -beq, lb, ub, dsp);
+% elapsedqp = toc(startqp);
+% fprintf('QP solver runtime: %f\n',elapsedqp);
+% dYp.lam_g = -lambda.eqlin;
+% dYp.lam_x = -lambda.lower - lambda.upper;
+
 
 % % CPLEX setup
 % options = cplexoptimset;
@@ -169,6 +190,18 @@ dYp.lam_g = -Result.v_k(numX+1:end);
 % fprintf ('\nSolution status = %s \n', output.cplexstatusstring);
 % fprintf ('Solution value = %f \n', fval);
 
+% % QPOASES setup
+% import casadi.*
+% x      = MX.sym('x',numX);
+% f_gn   = 0.5*(x'*(H)'*H*x);
+% g_l    = beq + Aeq*x;
+% qp     = struct('x',x, 'f',f_gn,'g',g_l);
+% solver = qpsol('solver', 'qpoases', qp);
+% startqp   = tic;
+% sol       = solver('lbg',zeros(numY,1),'ubg',zeros(numY,1),'lbx',lb,'ubx',ub);
+% elapsedqp = toc(startqp);
+% fprintf('QP solver runtime: %f\n',elapsedqp);
+% dXp       = full(sol.x);
 end
 
 function [lpSol, exitflag] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z)
@@ -218,12 +251,12 @@ b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x];
 %option  = cplexoptimset('Display', 'on', 'Algorithm', 'dual');
 % reference for CLPLEX option: http://www.pserc.cornell.edu/matpower/docs/ref/matpower5.0/cplex_options.html
 option          = cplexoptimset('cplex');
-option.Display  = 'iter';
-%option.Display  = 'none';
+%option.Display  = 'iter';
+option.Display  = 'none';
 option.lpmethod = 1;
 option.advance  = 1;
-option.simplex.pgradient = -1; %OK - 230 sec. 116354 iterations
-%option.simplex.pgradient = 3; %OK - 211 sec. 60198 iterations
+%option.simplex.pgradient = -1; %OK - 230 sec. 116354 iterations
+option.simplex.pgradient = 3; %OK - 211 sec. 60198 iterations
 %option.simplex.limits.iterations = 30100;
 %option.simplex.limits.iterations = 32000;
 

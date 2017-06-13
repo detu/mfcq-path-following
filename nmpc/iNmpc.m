@@ -42,7 +42,7 @@ while(mpciter <= mpciterations)
     holdupNoise        = noise(:,mpciter);
     concentrationNoise = zeros(42,1);
     measNoise          = [concentrationNoise;holdupNoise];
-    x0_measure         =  x0 + measNoise;
+    x0_measure         =  x0 + 0*measNoise;    % without noise
     
 
     % ideal NMPC:

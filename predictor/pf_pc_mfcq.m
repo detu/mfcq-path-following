@@ -82,6 +82,7 @@ while (t < 1)
         % update deltaT
         delta_t = deltaT;
         % debug
+        fprintf("keyboard debug \n");
         keyboard;
     end
     

@@ -22,7 +22,8 @@ global N;
 %mpciterations = 150;
 %mpciterations = 2;
 %mpciterations = 5;
-mpciterations = 20;
+%mpciterations = 20;
+mpciterations = 50;   % 50 x 3
 % number of prediction horizon
 N             = 30;  
 % sampling time
@@ -48,10 +49,11 @@ xmeasure      = Xinit28(1:84);
 
 % either call iNMPC 
 %[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+%save iNmpc.mat xmeasureAll uAll;   % without noise
 
 % or pf-NMPC
 [~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
- 
+save pfNmpc.mat xmeasureAll_pf uAll_pf; 
 
 keyboard;
 
@@ -331,7 +333,8 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     nx = 84;   % CSTR + Distillation Column A
     nu = 5;    % LT, VB, F, D, B
     nk = 1;
-    tf = 1;      % in [minutes]
+    %tf = 1;   % in [minutes]
+    tf = 3;    % 3 minutes
     h  = tf/nk;
     ns = 0;
     
