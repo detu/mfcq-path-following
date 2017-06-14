@@ -48,12 +48,14 @@ tmeasure      = 0.0;
 xmeasure      = Xinit28(1:84);
 
 % either call iNMPC 
-%[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
-%save iNmpc.mat xmeasureAll uAll;   % without noise
+% [~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+% %save iNmpc.mat xmeasureAll uAll;   % without noise
+% save iNmpcNoise.mat xmeasureAll uAll;
 
 % or pf-NMPC
 [~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
-save pfNmpc.mat xmeasureAll_pf uAll_pf; 
+% save pfNmpc.mat xmeasureAll_pf uAll_pf; % without noise 
+ save pfNmpcNoise.mat xmeasureAll_pf uAll_pf;
 
 keyboard;
 

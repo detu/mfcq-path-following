@@ -42,7 +42,13 @@ while(mpciter <= mpciterations)
     holdupNoise        = noise(:,mpciter);
     concentrationNoise = zeros(42,1);
     measNoise          = [concentrationNoise;holdupNoise];
-    x0_measure         =  x0 + 0*measNoise;    % without noise
+    %x0_measure         =  x0 + 0*measNoise;    % without noise
+    x0_measure         =  x0 + measNoise;
+    
+    % check constraints on boundary
+    x0_measure = max(min(x0_measure,1.0),0); % restrict to boundaries
+    if x0_measure(1,1) > 0.1; x0_measure(1,1) = 0.1; end
+    if x0_measure(84,1) > 0.7; x0_measure(84,1) = 0.7; end
     
 
     % ideal NMPC:
