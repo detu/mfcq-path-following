@@ -23,7 +23,8 @@ function [x_init, y_init, qp_exit, delta_t, success] = solveThreeSteps(prob, x_i
 global flagDt mpciter;
 etamax  = oldEta;
 success = 0;
-if ((mpciter == 1) && (t == 0))
+%if ((mpciter == 1) && (t == 0))
+if (t == 0)
     flagDt = 1;
 else
     flagDt = 0;
@@ -62,7 +63,7 @@ else
     [newEta, z] = computeEta(Jeq, g, yCurrent, cin);
     
     % Checking condition (5.1)
-    if newEta <= max(5.0,etamax)   % Parameters.etaMax = 5.0
+    if newEta <= max(0.5,etamax)   % Parameters.etaMax = 0.5
         % Update primal and dual variables 
         deltaX = deltaXc + deltaXp;
         deltaY = deltaYplus + deltaYp.lam_g;
@@ -230,17 +231,10 @@ function [lpSol, exitflag] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z)
 
 lb       = -Inf*ones(numY,1);
 ub       = Inf*ones(numY,1);
-% lb       = -Inf*ones(numY+numActiveBoundCons,1);
-% ub       = Inf*ones(numY+numActiveBoundCons,1);
 f        = dpe*step;
-% f        = [f;zeros(numActiveBoundCons,1)];
 A        = [Jeq';-Jeq'];
-% A        = [JActive';-JActive'];
-%b        = [g+abs(z);abs(z)-g];
-%b        = [abs(z)-g;abs(z)+g];
 b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x];
-% A        = [Jeq';-Jeq'];
-%b        = [abs(z) + g + y.lam_x; abs(z) - g - y.lam_x];
+
 % option   = optimoptions('linprog','Algorithm','dual-simplex','Display','off');
 % option = cplexoptimset;
 % option.Display = 'on';
@@ -256,11 +250,11 @@ option.Display  = 'none';
 option.lpmethod = 1; %primal simplex
 %option.lpmethod = 2; %dual simplex
 %option.lpmethod = 3;  %network simplex
-option.advance  = 1;
+%option.advance  = 1;
+%option.read.scale = 1;
 %option.simplex.pgradient = -1; %OK - 230 sec. 116354 iterations
-option.simplex.pgradient = 3; %OK - 211 sec. 60198 iterations
-%option.simplex.limits.iterations = 30100;
-%option.simplex.limits.iterations = 32000;
+%option.simplex.pgradient = 3; %OK - 211 sec. 60198 iterations
+option.simplex.tolerances.optimality = 1e-1; %default value is 1e-6
 
 startlp = tic;
 [lpSol,~,exitflag] = cplexlp(f, A, b, [], [], lb, ub, y.lam_g, option );

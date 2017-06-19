@@ -19,11 +19,11 @@ format long;
 
 global N;
 % number of mpc iteration
-%mpciterations = 150;
+mpciterations = 150;
 %mpciterations = 2;
 %mpciterations = 5;
 %mpciterations = 20;
-mpciterations = 50;   % 50 x 3
+%mpciterations = 50;   % 50 x 3
 % number of prediction horizon
 N             = 30;  
 % sampling time
@@ -50,13 +50,20 @@ xmeasure      = Xinit28(1:84);
 % either call iNMPC 
 % [~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 % %save iNmpc.mat xmeasureAll uAll;   % without noise
-% save iNmpcNoise.mat xmeasureAll uAll;
+% %save iNmpcNoise.mat xmeasureAll uAll;
+% xmeasureAll_1pct = xmeasureAll;
+% uAll_1pct        = uAll;
+% save iNmpcNoise_1pct.mat xmeasureAll_1pct uAll_1pct;
 
 % or pf-NMPC
 [~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 % save pfNmpc.mat xmeasureAll_pf uAll_pf; % without noise 
- save pfNmpcNoise.mat xmeasureAll_pf uAll_pf;
+% save pfNmpcNoise.mat xmeasureAll_pf uAll_pf;
+% xmeasureAll_pf_1pct = xmeasureAll_pf;
+% uAll_pf_1pct = uAll_pf;
+% save pfNmpcNoise_1pct.mat xmeasureAll_pf_1pct uAll_pf_1pct;
 
+save pfNmpcPC.mat xmeasureAll_pf uAll_pf;
 keyboard;
 
 %% THE CODE BELOW IS JUST FOR PLOTTING
@@ -335,8 +342,8 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     nx = 84;   % CSTR + Distillation Column A
     nu = 5;    % LT, VB, F, D, B
     nk = 1;
-    %tf = 1;   % in [minutes]
-    tf = 3;    % 3 minutes
+    tf = 1;   % in [minutes]
+    %tf = 3;    % 3 minutes
     h  = tf/nk;
     ns = 0;
     
@@ -467,10 +474,6 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
             w      = {w{:}, Xkj{j}};
             lbw    = [lbw; x_min];
             ubw    = [ubw; x_max];
-%             x_maxEnd       =  ones(84,1);
-%             x_maxEnd(1,1)  = 0.1;
-%             x_maxEnd(84,1) = 0.7;
-%             ubw = [ubw; x_maxEnd];
             w0     = [w0; x(iter+1,:)'];
             count  = count + 1;
         end

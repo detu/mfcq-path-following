@@ -18,6 +18,6 @@ function [Eta, z] = computeEta(Jeq, g, y, cin)
 %z       = g + Jeq'*y.lam_g;
 z       = g + Jeq'*y.lam_g + y.lam_x;
 stackLC = [cin;z];
-Eta     = norm(stackLC,inf);
+Eta     = 0.1*norm(stackLC,inf);
 
 end

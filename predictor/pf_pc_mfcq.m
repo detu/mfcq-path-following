@@ -62,7 +62,8 @@ while (t < 1)
     end
 
     % solve MFCQ predictor-corrector 
-    [x_init, y_init, qp_run, deltaT, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta);  % supply initial guess
+    %[x_init, y_init, qp_run, deltaT, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta);  % supply initial guess
+    [x_init, y_init, qp_run, deltaT, success] = solvePredictorCorrector(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta);
     elapsedqp = elapsedqp + qp_run;
     
     if (success == 1)
