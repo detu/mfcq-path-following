@@ -1,4 +1,4 @@
-function [x_init, y_init, qp_exit, delta_t, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta)
+function [x_init, y_init, qp_exit, delta_t, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init)
 %SOLVETHREESTEPS Summary of this function goes here
 % 
 % Solve 3 step described in MFCQ paper  
@@ -30,8 +30,11 @@ else
     flagDt = 0;
     %load Hc.mat;
 end
+numX = size(x_init,1);
+numY = size(y_init.lam_g,1);
 
-if oldEta > 1
+%if oldEta > 1
+if oldEta > 5
     % decrease deltaT
     delta_t = 0.6*delta_t;
     qp_exit = 0;
@@ -48,37 +51,40 @@ else
     end
     
     % First: Corrector Step
-    [deltaXc,deltaYplus]      = solveCorrectStep(H, Jeq, g, cin, y_init);
+    [deltaXc,deltaYplus,activeBoundInd,JAbc]      = solveCorrectStep(H, Jeq, g, cin, y_init, x_init, ub_init);
     
     % Second: Predictor
-    [deltaXp,deltaYp, qp_exit] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc);
-    
+    [deltaXp,deltaYp, qp_exit] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc, activeBoundInd);
     
     % Calculate new Eta 
-    xCurrent       = x_init + deltaXc + deltaXp;
-    yCurrent.lam_g = y_init.lam_g + deltaYplus + deltaYp.lam_g;
-    yCurrent.lam_x = y_init.lam_x + deltaYp.lam_x;
+    xCurrent         = x_init + deltaXc + deltaXp;
+    yCurrent.lam_g   = y_init.lam_g + deltaYplus.lam_g + deltaYp.lam_g;
+    
+
+    % update the dual's bound constraints
+    %yCurrent.lam_x = y_init.lam_x + deltaYp.lam_x;
+    yCurrent.lam_x = y_init.lam_x + deltaYp.lam_x + deltaYplus.lam_x;
+    
     flagDt         = 0;
     [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(xCurrent,yCurrent,p_t, N);
     [newEta, z] = computeEta(Jeq, g, yCurrent, cin);
     
     % Checking condition (5.1)
-    if newEta <= max(0.5,etamax)   % Parameters.etaMax = 0.5
+    if newEta <= max(5,etamax)   % Parameters.etaMax = 5.0
         % Update primal and dual variables 
         deltaX = deltaXc + deltaXp;
-        deltaY = deltaYplus + deltaYp.lam_g;
+        deltaY = deltaYplus.lam_g + deltaYp.lam_g;
         
         % Update deltaT  
         delta_t = updateDeltaT(oldEta, newEta, delta_t);
         
-        % Since the dynamics are equality constraints, all constraints are
-        % active. NOTE: Bound constraints will be treated later! 
-        
         % Third: Jump Step
-        [lpSol, exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z);
+        [lpSol, exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z, JAbc);
         if exitLP >= 0
-            y_init.lam_g = lpSol;
-            y_init.lam_x = yCurrent.lam_x; % Is it Correct? 
+            y_init.lam_g = lpSol(1:numY);
+            %y_init.lam_x = yCurrent.lam_x; % Is it Correct? 
+            y_init.lam_x = zeros(numX,1);
+            y_init.lam_x(activeBoundInd) = lpSol(numY+1:end);
         end
         
         success = 1;
@@ -102,21 +108,43 @@ end
 
 end
 
-function [dXc,dYplus] = solveCorrectStep(H, Jeq, g, c, y)
+function [dXc,dYplus,activeIndex,JAbc] = solveCorrectStep(H, Jeq, g, c, y, x, ub)
 
-[n, m] = size(Jeq);
+% active bound constraints
+boundMultiplier    = y.lam_x;
+positiveBoundMult  = abs(boundMultiplier);
+activeIndex        = find(positiveBoundMult>1e-1);  % set active bound constraint.
+paramIndex         = find(activeIndex <= 84);       % remove the first 84 constraints (the parameter)
+activeIndex(paramIndex) = [];
+numActiveBoundCons = numel(activeIndex);
+
+[numY,m] = size(Jeq);
+JAbc     = zeros(numActiveBoundCons,m);
+for i=1:numActiveBoundCons
+    row         = activeIndex(i);
+    JAbc(i,row) = 1;
+end
+
+Jeq     = [Jeq;JAbc];
+n       = size(Jeq,1);
 lhs     = [H                   -Jeq'; ...
            Jeq                 zeros(n,n)];
 %rhs     = -[g-Jeq'*y.lam_g ; c];
-rhs     = -[g + Jeq'*y.lam_g + y.lam_x; c];
+%rhs     = -[g + Jeq'*y.lam_g + y.lam_x; c];
+xActive = x(activeIndex);
+rhs     = -[g + Jeq'*([y.lam_g; y.lam_x(activeIndex)]); [c;(ub(activeIndex)-xActive)]];
 solCorrectStep = lhs\rhs;
 dXc    = solCorrectStep(1:m);
-dYplus = solCorrectStep(m+1:end);
+dYplus.lam_g = solCorrectStep(m+1:m+numY);
+dYplus.lam_x = zeros(m,1);
+dYplus.lam_x(activeIndex) = solCorrectStep(m+numY+1:end);
 
 end
 
-function [dXp, dYp, elapsedqp] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc)
+function [dXp, dYp, elapsedqp] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc, activeBoundInd)
 % QP consists of equality and bound constraints 
+
+% TO DO: include active-bound constrain here !
 
 % QP setup
 A   = [];
@@ -133,6 +161,15 @@ end
 Aeq  = Jeq + Hcx;
 %Aeq  = Jeq;
 beq  = dpe*step + ceq;   %OK
+
+% build equality constraint from active bound constraints
+numBaC = size(activeBoundInd,1);
+for i=1:numBaC
+    % put strongly active constraint on boundary
+    indB         = activeBoundInd(i);
+    ub(indB)     = 0;        % keep upper bound on boundary
+    lb(indB)     = 0;
+end
 
 % TOMLAB setup
 Prob   = qpAssign(H, f, Aeq, beq, beq, lb, ub);
@@ -205,34 +242,22 @@ dYp.lam_g = -Result.v_k(numX+1:end);
 % dXp       = full(sol.x);
 end
 
-function [lpSol, exitflag] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z)
+function [lpSol, exitflag] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z, JAbc)
 % test LP with GUROBI and CLPEX
 % INCLUDE ACTIVE BOUND CONSTRAINT HERE !
 
-%numY = size(Jeq,1);
 [numY, numX] = size(Jeq);
 
-% % active bound constraints
-% boundMultiplier    = y.lam_x;
-% positiveBoundMult  = abs(boundMultiplier);
-% activeIndex        = find(positiveBoundMult>1e-3);
-% numActiveBoundCons = numel(activeIndex);
-% % Jbc                = eye(numActiveBoundCons);   
-% % JbcExt             = zeros(numActiveBoundCons, numX-numActiveBoundCons);
-% % JAbc               = [Jbc JbcExt];
-% % JActive            = [Jeq;JAbc];
+% active bound constraints
+JActive  = [Jeq;JAbc];
+numAct   = size(JAbc,1);
 
-% JAbc = zeros(numActiveBoundCons,numX);
-% for i=1:numActiveBoundCons
-%     row         = activeIndex(i);
-%     JAbc(i,row) = 1;
-% end
-% JActive         = [Jeq;JAbc];
-
-lb       = -Inf*ones(numY,1);
-ub       = Inf*ones(numY,1);
+lb       = -Inf*ones(numY+numAct,1);
+ub       = Inf*ones(numY+numAct,1);
 f        = dpe*step;
-A        = [Jeq';-Jeq'];
+f        = [f;zeros(numAct,1)];
+%A        = [Jeq';-Jeq'];
+A        = [JActive';-JActive'];
 b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x];
 
 % option   = optimoptions('linprog','Algorithm','dual-simplex','Display','off');
@@ -244,7 +269,8 @@ b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x];
 
 %option  = cplexoptimset('Display', 'on', 'Algorithm', 'dual');
 % reference for CLPLEX option: http://www.pserc.cornell.edu/matpower/docs/ref/matpower5.0/cplex_options.html
-option          = cplexoptimset('cplex');
+%option          = cplexoptimset('cplex'); % THIS CAUSES CRASH DUMP !
+option          = cplexoptimset;
 %option.Display  = 'iter';
 option.Display  = 'none';
 option.lpmethod = 1; %primal simplex
