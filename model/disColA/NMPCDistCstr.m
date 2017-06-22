@@ -30,22 +30,22 @@ N             = 30;
 T             = 1;  % [minute]
 % initial controls (different initial conditions)
 %load Xinit40.mat;  
-%load Xinit32.mat;
+load Xinit32.mat;
 %load Xinit29.mat;  
-load Xinit28.mat;
+%load Xinit28.mat;
 %load Xinit30.mat
 %load Xinit31.mat;
 %u0            = Xinit40(85:89);
 %u0            = Xinit29(85:89);
-%u0            = Xinit32(85:89);
-u0            = Xinit28(85:89);
+u0            = Xinit32(85:89);
+%u0            = Xinit28(85:89);
 u0            = repmat(u0,1,N);
 % get initial measurement (states) at time T = 0.
 tmeasure      = 0.0;
 %xmeasure      = Xinit40(1:84);
 %xmeasure      = Xinit29(1:84);
-%xmeasure      = Xinit32(1:84);
-xmeasure      = Xinit28(1:84);
+xmeasure      = Xinit32(1:84);
+%xmeasure      = Xinit28(1:84);
 
 % either call iNMPC 
 % [~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
@@ -56,14 +56,14 @@ xmeasure      = Xinit28(1:84);
 % save iNmpcNoise_1pct.mat xmeasureAll_1pct uAll_1pct;
 
 % or pf-NMPC
-[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 % save pfNmpc.mat xmeasureAll_pf uAll_pf; % without noise 
 % save pfNmpcNoise.mat xmeasureAll_pf uAll_pf;
 % xmeasureAll_pf_1pct = xmeasureAll_pf;
 % uAll_pf_1pct = uAll_pf;
 % save pfNmpcNoise_1pct.mat xmeasureAll_pf_1pct uAll_pf_1pct;
-
-save pfNmpcPC.mat xmeasureAll_pf uAll_pf;
+save pfNmpcWoHc.mat xmeasureAll_pf uAll_pf;
+%save pfNmpcPC.mat xmeasureAll_pf uAll_pf;
 keyboard;
 
 %% THE CODE BELOW IS JUST FOR PLOTTING

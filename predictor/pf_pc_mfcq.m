@@ -1,4 +1,4 @@
-function [x_init, y_init, elapsedqp] = pf_pc_mfcq(problem, p_init, p_final, x_init, y_init, delta_t, lb_init, ub_init, verbose_level, N)
+function [x_init, y_init, elapsedqp, etaRecord, numActiveBoundRecord] = pf_pc_mfcq(problem, p_init, p_final, x_init, y_init, delta_t, lb_init, ub_init, verbose_level, N)
 %PF_PC_MFCQ Summary of this function goes here
 % 
 % [OUTPUTARGS] = PF_PC_MFCQ(INPUTARGS) Explain usage here
@@ -16,7 +16,8 @@ function [x_init, y_init, elapsedqp] = pf_pc_mfcq(problem, p_init, p_final, x_in
 
 
 % TO DO:
-% 1. Modify Lagrangian to include bound constraints !
+% 1. Compute Eta per delta_t
+% 2. Report number of active bound constraints
 
 clear prob;
 sym pp;
@@ -40,6 +41,8 @@ flagDt = 0;   % THINK ABOUT THIS LATTER!
 
 %% CHANGE THE ALGORITHM !
 % FIST CHECK oldEta value !
+etaRecord            = [];
+numActiveBoundRecord = [];
 
 while (t < 1)
     
@@ -62,7 +65,7 @@ while (t < 1)
     end
 
     % solve MFCQ predictor-corrector 
-    [x_init, y_init, qp_run, deltaT, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init);  % supply initial guess
+    [x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init);  % supply initial guess
     %[x_init, y_init, qp_run, deltaT, success] = solvePredictorCorrector(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta);
     elapsedqp = elapsedqp + qp_run;
     
@@ -79,6 +82,9 @@ while (t < 1)
         
         % update Eta
         %oldEta = newEta;
+        
+        etaRecord            = [etaRecord;etaData];
+        numActiveBoundRecord = [numActiveBoundRecord;numActiveBound];
     else
         % update deltaT
         delta_t = deltaT;

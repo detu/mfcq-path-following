@@ -1,4 +1,4 @@
-function [Tall, xmeasureAll, uAll, ObjVal, primalPF, params, runtime] = pfNmpc(optProblem, system, mpciterations, N, T, tmeasure, xmeasure, u0, varargin)
+function [Tall, xmeasureAll, uAll, ObjVal, primalPF, params, runtime, etaData, nABC] = pfNmpc(optProblem, system, mpciterations, N, T, tmeasure, xmeasure, u0, varargin)
 %PFNMPC Summary of this function goes here
 % 
 % Path-following based Nonlinear Model Predictive Control
@@ -34,6 +34,9 @@ z1 = xmeasure;
 global flagDt mpciter;
 mpciter = 1;
 flagDt  = 1;  % define 1 one time!
+
+etaData = [];
+nABC    = [];
 while(mpciter <= mpciterations)
     
     fprintf('-----------------------------\n');
@@ -79,8 +82,10 @@ while(mpciter <= mpciterations)
     
     % NLP sensitivity (predictor-corrector)
     %[primalPF, ~, elapsedqp] = jpredictor_licq_pure_3(@(p)distColACstr_pn(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N);
-    [primalPF, ~, elapsedqp] = pf_pc_mfcq(@(p)distColACstr_mfcq(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N);
+    [primalPF, ~, elapsedqp, etaRecord, numActiveBoundRecord] = pf_pc_mfcq(@(p)distColACstr_mfcq(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N);
     
+    etaData = [etaData; etaRecord];
+    nABC    = [nABC; numActiveBoundRecord];
      
     %[u_nlp_opt, x_nlp_opt] = plotStatesN(primalNLP, lb, ub, N);  % distillation column plot
     [u_pf_opt, x_pf_opt] = plotStatesN(primalPF, lb, ub, N);

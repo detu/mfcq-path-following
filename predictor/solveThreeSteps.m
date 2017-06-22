@@ -1,4 +1,4 @@
-function [x_init, y_init, qp_exit, delta_t, success] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init)
+function [x_init, y_init, qp_exit, delta_t, success, etaData, numActiveBound] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init)
 %SOLVETHREESTEPS Summary of this function goes here
 % 
 % Solve 3 step described in MFCQ paper  
@@ -23,13 +23,13 @@ function [x_init, y_init, qp_exit, delta_t, success] = solveThreeSteps(prob, x_i
 global flagDt mpciter;
 etamax  = oldEta;
 success = 0;
-%if ((mpciter == 1) && (t == 0))
-if (t == 0)
-    flagDt = 1;
-else
-    flagDt = 0;
-    %load Hc.mat;
-end
+% if ((mpciter == 1) && (t == 0))
+% %if (t == 0)
+%     flagDt = 1;
+% else
+%     flagDt = 0;
+%     %load Hc.mat;
+% end
 numX = size(x_init,1);
 numY = size(y_init.lam_g,1);
 
@@ -39,7 +39,7 @@ if oldEta > 5
     delta_t = 0.6*delta_t;
     qp_exit = 0;
     % debug 
-    fprintf("keyboard debug \n");
+    fprintf('keyboard debug \n');
     keyboard;
 else
     % proceed with everything... 
@@ -79,10 +79,9 @@ else
         delta_t = updateDeltaT(oldEta, newEta, delta_t);
         
         % Third: Jump Step
-        [lpSol, exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z, JAbc);
+        [lpSol, exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z, JAbc, activeBoundInd);
         if exitLP >= 0
             y_init.lam_g = lpSol(1:numY);
-            %y_init.lam_x = yCurrent.lam_x; % Is it Correct? 
             y_init.lam_x = zeros(numX,1);
             y_init.lam_x(activeBoundInd) = lpSol(numY+1:end);
         end
@@ -96,12 +95,14 @@ else
             etamax = newEta;
         end
         
+        etaData        = newEta;
+        numActiveBound = numel(activeBoundInd);
     else
         % decrease deltaT
         delta_t = 0.6*delta_t;
         qp_exit = 0;
         % debug
-        fprintf("keyboard debug \n");
+        fprintf('keyboard debug \n');
         keyboard;
     end
 end
@@ -127,12 +128,9 @@ end
 
 Jeq     = [Jeq;JAbc];
 n       = size(Jeq,1);
-lhs     = [H                   -Jeq'; ...
+lhs     = [H                   Jeq'; ...
            Jeq                 zeros(n,n)];
-%rhs     = -[g-Jeq'*y.lam_g ; c];
-%rhs     = -[g + Jeq'*y.lam_g + y.lam_x; c];
-xActive = x(activeIndex);
-rhs     = -[g + Jeq'*([y.lam_g; y.lam_x(activeIndex)]); [c;(ub(activeIndex)-xActive)]];
+rhs     = -[g + Jeq'*([y.lam_g; y.lam_x(activeIndex)]); [c;zeros(numActiveBoundCons,1)]];
 solCorrectStep = lhs\rhs;
 dXc    = solCorrectStep(1:m);
 dYplus.lam_g = solCorrectStep(m+1:m+numY);
@@ -142,9 +140,7 @@ dYplus.lam_x(activeIndex) = solCorrectStep(m+numY+1:end);
 end
 
 function [dXp, dYp, elapsedqp] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc, activeBoundInd)
-% QP consists of equality and bound constraints 
 
-% TO DO: include active-bound constrain here !
 
 % QP setup
 A   = [];
@@ -163,13 +159,13 @@ Aeq  = Jeq + Hcx;
 beq  = dpe*step + ceq;   %OK
 
 % build equality constraint from active bound constraints
-numBaC = size(activeBoundInd,1);
-for i=1:numBaC
-    % put strongly active constraint on boundary
-    indB         = activeBoundInd(i);
-    ub(indB)     = 0;        % keep upper bound on boundary
-    lb(indB)     = 0;
-end
+% numBaC = size(activeBoundInd,1);
+% for i=1:numBaC
+%     % put strongly active constraint on boundary
+%     indB         = activeBoundInd(i);
+%     ub(indB)     = 0;        % keep upper bound on boundary
+%     lb(indB)     = 0;
+% end
 
 % TOMLAB setup
 Prob   = qpAssign(H, f, Aeq, beq, beq, lb, ub);
@@ -185,8 +181,13 @@ qp_exit = Result.ExitFlag;
 if qp_exit == 0
     dXp       = Result.x_k;
     %qp_val  = Result.f_k;
+    dYp.lam_x = -Result.v_k(1:numX);
+    dYp.lam_g = -Result.v_k(numX+1:end);
 else
-    keyboard;
+    %keyboard;
+    dXp       = zeros(numX,1);
+    dYp.lam_x = zeros(numX,1);
+    dYp.lam_g = zeros(numY,1);
 end
 
 % numX        = size(x_init,1);
@@ -194,8 +195,8 @@ end
 % lamda.lam_g = -Result.v_k(numX+1:end);
 % fprintf('QP return: %d\n', qp_exit);
 %dYp = -Result.v_k(numX+1:end);
-dYp.lam_x = -Result.v_k(1:numX);
-dYp.lam_g = -Result.v_k(numX+1:end);
+% dYp.lam_x = -Result.v_k(1:numX);
+% dYp.lam_g = -Result.v_k(numX+1:end);
 
 % % QUADPROG setup
 % %option = optimset('Display','off','Algorithm','active-set');
@@ -242,9 +243,7 @@ dYp.lam_g = -Result.v_k(numX+1:end);
 % dXp       = full(sol.x);
 end
 
-function [lpSol, exitflag] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z, JAbc)
-% test LP with GUROBI and CLPEX
-% INCLUDE ACTIVE BOUND CONSTRAINT HERE !
+function [lpSol, exitflag] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z, JAbc, activeIndex)
 
 [numY, numX] = size(Jeq);
 
@@ -258,7 +257,8 @@ f        = dpe*step;
 f        = [f;zeros(numAct,1)];
 %A        = [Jeq';-Jeq'];
 A        = [JActive';-JActive'];
-b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x];
+%b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x]; % WRONG!
+b        = [abs(z) - g - JActive'*([y.lam_g; y.lam_x(activeIndex)]); abs(z) + g + JActive'*([y.lam_g; y.lam_x(activeIndex)])];
 
 % option   = optimoptions('linprog','Algorithm','dual-simplex','Display','off');
 % option = cplexoptimset;
