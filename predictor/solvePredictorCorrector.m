@@ -1,4 +1,4 @@
-function [x_init, y_init, qp_exit, delta_t, success] = solvePredictorCorrector(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta)
+function [x_init, y_init, qp_exit, delta_t, success, etaData, numActiveBound] = solvePredictorCorrector(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta)
 %SOLVEPREDICTORCORRECTOR Summary of this function goes here
 % 
 % [OUTPUTARGS] = SOLVEPREDICTORCORRECTOR(INPUTARGS) Explain usage here
@@ -30,7 +30,7 @@ else
     
     % Solve Predictor-Corrector QP
     %[deltaXp,deltaYp, qp_exit] = solveQPPredictorCorrector(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc);
-    [deltaXpc, ~, qp_exit, lamda, qp_run] = solveQPPredictorCorrector(prob, p_0, x_init, y_init, step, lb, ub, N, x0);
+    [deltaXpc, ~, qp_exit, lamda, qp_run, activeBoundInd] = solveQPPredictorCorrector(prob, p_0, x_init, y_init, step, lb, ub, N, x0);
     
     % Calculate new Eta 
     xCurrent       = x_init + deltaXpc;
@@ -54,6 +54,9 @@ else
             etamax = newEta;
         end
         
+        etaData        = newEta;
+        numActiveBound = numel(activeBoundInd);
+        
     else
         % decrease deltaT
         delta_t = 0.6*delta_t;
@@ -71,7 +74,7 @@ end
 % SOLVE QP program
 % solution of QP program: [y] (directional derivative)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [y, qp_val, qp_exit, lamda, elapsedqp] = solveQPPredictorCorrector(prob, p, x_init, y_init, step, lb, ub, N, x0)
+function [y, qp_val, qp_exit, lamda, elapsedqp, activeIndex] = solveQPPredictorCorrector(prob, p, x_init, y_init, step, lb, ub, N, x0)
     
 
     % obtain derivatives information
@@ -86,6 +89,14 @@ function [y, qp_val, qp_exit, lamda, elapsedqp] = solveQPPredictorCorrector(prob
     ceq  = cin;
     Aeq  = Jeq;
     beq  = dpe*step + ceq;   %OK
+    
+    % active bound constraints
+    boundMultiplier    = y_init.lam_x;
+    positiveBoundMult  = abs(boundMultiplier);
+    activeIndex        = find(positiveBoundMult>1e-1);  % set active bound constraint.
+    paramIndex         = find(activeIndex <= 84);       % remove the first 84 constraints (the parameter)
+    activeIndex(paramIndex) = [];
+    %numActiveBoundCons = numel(activeIndex);
 
        
 %     % CHECK LAGRANGE MULTIPLIERS FROM BOUND CONSTRAINTS 

@@ -74,17 +74,28 @@ else
         % Update primal and dual variables 
         deltaX = deltaXc + deltaXp;
         deltaY = deltaYplus.lam_g + deltaYp.lam_g;
+        y_init.lam_g = deltaY;
+        y_init.lam_x = yCurrent.lam_x;
         
         % Update deltaT  
         delta_t = updateDeltaT(oldEta, newEta, delta_t);
         
         % Third: Jump Step
-        [lpSol, exitLP]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z, JAbc, activeBoundInd);
-        if exitLP >= 0
+        [lpSol, exitLP, linobj]   = solveJumpLP(Jeq, Lxp, g, dpe, cin, yCurrent, step, z, JAbc, activeBoundInd);
+        
+        condLP1 = linobj'*lpSol;
+        condLP2 = linobj'*[deltaY;y_init.lam_x(activeBoundInd)]-sqrt(eps);
+        if exitLP >= 0 && (condLP1 < condLP2)
             y_init.lam_g = lpSol(1:numY);
             y_init.lam_x = zeros(numX,1);
-            y_init.lam_x(activeBoundInd) = lpSol(numY+1:end);
+            y_init.lam_x(activeBoundInd) = -lpSol(numY+1:end);
         end
+        
+%         % try to remove LP emulating pure-predictor
+%         y_init.lam_g = deltaY;
+%         y_init.lam_x = yCurrent.lam_x;
+%         diff_g = y_init.lam_g - deltaY;
+%         diff_x = y_init.lam_x - yCurrent.lam_x;
         
         success = 1;
         x_init  = x_init + deltaX;
@@ -155,7 +166,7 @@ for i=1:numY
     Hcx(i,:) = (Hc{:,:,i}*deltaXc)';
 end
 Aeq  = Jeq + Hcx;
-%Aeq  = Jeq;
+% Aeq  = Jeq;
 beq  = dpe*step + ceq;   %OK
 
 % build equality constraint from active bound constraints
@@ -243,7 +254,7 @@ end
 % dXp       = full(sol.x);
 end
 
-function [lpSol, exitflag] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z, JAbc, activeIndex)
+function [lpSol, exitflag, f] = solveJumpLP(Jeq, Lxp, g, dpe, cin, y, step, z, JAbc, activeIndex)
 
 [numY, numX] = size(Jeq);
 
@@ -259,6 +270,7 @@ f        = [f;zeros(numAct,1)];
 A        = [JActive';-JActive'];
 %b        = [abs(z) - g - y.lam_x; abs(z) + g + y.lam_x]; % WRONG!
 b        = [abs(z) - g - JActive'*([y.lam_g; y.lam_x(activeIndex)]); abs(z) + g + JActive'*([y.lam_g; y.lam_x(activeIndex)])];
+%b        = [abs(z) + g + JActive'*([y.lam_g; y.lam_x(activeIndex)]); abs(z) - g - JActive'*([y.lam_g; y.lam_x(activeIndex)])];
 
 % option   = optimoptions('linprog','Algorithm','dual-simplex','Display','off');
 % option = cplexoptimset;
