@@ -43,7 +43,7 @@ flagDt = 0;   % THINK ABOUT THIS LATTER!
 % FIST CHECK oldEta value !
 etaRecord            = [];
 numActiveBoundRecord = [];
-
+activeBoundTol       = [];
 while (t < 1)
     
     % calculate step s
@@ -53,7 +53,7 @@ while (t < 1)
     
     % compute the residual optimality at p_0
     [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(x_init,y_init,p_0, N);    % obtain derivatives information
-    [oldEta, ~]                 = computeEta(Jeq, g, y_init, cin);
+    [oldEta, ~]                 = computeEta(Jeq, g, y_init, cin, activeBoundTol);
     
     % update bound constraint
     if(~isempty(lb_init))
@@ -65,7 +65,7 @@ while (t < 1)
     end
 
     % solve MFCQ predictor-corrector 
-    [x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init);  % supply initial guess
+    [x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound, activeBoundTol] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init);  % supply initial guess
     %[x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound] = solvePredictorCorrector(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta);
     elapsedqp = elapsedqp + qp_run;
     

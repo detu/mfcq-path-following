@@ -1,4 +1,4 @@
-function [x_init, y_init, qp_exit, delta_t, success, etaData, numActiveBound] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init)
+function [x_init, y_init, qp_exit, delta_t, success, etaData, numActiveBound, activeBoundTol] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init)
 %SOLVETHREESTEPS Summary of this function goes here
 % 
 % Solve 3 step described in MFCQ paper  
@@ -33,14 +33,20 @@ success = 0;
 numX = size(x_init,1);
 numY = size(y_init.lam_g,1);
 
-%if oldEta > 1
+% %if oldEta > 1
 if oldEta > 5
+% if oldEta > 100
     % decrease deltaT
     delta_t = 0.6*delta_t;
     qp_exit = 0;
     % debug 
     fprintf('keyboard debug \n');
     keyboard;
+    
+    success = 0;
+    etaData        = [];
+    numActiveBound = [];
+    activeBoundTol = [];
 else
     % proceed with everything... 
     
@@ -51,7 +57,7 @@ else
     end
     
     % First: Corrector Step
-    [deltaXc,deltaYplus,activeBoundInd,JAbc]      = solveCorrectStep(H, Jeq, g, cin, y_init, x_init, ub_init);
+    [deltaXc,deltaYplus,activeBoundInd,JAbc,activeBoundTol]      = solveCorrectStep(H, Jeq, g, cin, y_init, x_init, ub_init, oldEta);
     
     % Second: Predictor
     [deltaXp,deltaYp, qp_exit] = solveQPPredict(H, Jeq, g, cin, Hc, step, dpe, lb, ub, deltaXc, activeBoundInd);
@@ -67,7 +73,7 @@ else
     
     flagDt         = 0;
     [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(xCurrent,yCurrent,p_t, N);
-    [newEta, z] = computeEta(Jeq, g, yCurrent, cin);
+    [newEta, z] = computeEta(Jeq, g, yCurrent, cin, activeBoundTol);
     
     % Checking condition (5.1)
     if newEta <= max(5,etamax)   % Parameters.etaMax = 5.0
@@ -115,17 +121,24 @@ else
         % debug
         fprintf('keyboard debug \n');
         keyboard;
+        
+        success = 0;
+        etaData        = [];
+        numActiveBound = [];
+        activeBoundTol = [];
     end
 end
 
 end
 
-function [dXc,dYplus,activeIndex,JAbc] = solveCorrectStep(H, Jeq, g, c, y, x, ub)
+function [dXc,dYplus,activeIndex,JAbc,activeBoundTol] = solveCorrectStep(H, Jeq, g, c, y, x, ub, oldEta)
 
 % active bound constraints
 boundMultiplier    = y.lam_x;
 positiveBoundMult  = abs(boundMultiplier);
 activeIndex        = find(positiveBoundMult>1e-1);  % set active bound constraint.
+activeBoundTol     = oldEta^(0.7);
+% activeIndex        = find(positiveBoundMult>activeBoundTol);  % set active bound constraint.
 paramIndex         = find(activeIndex <= 84);       % remove the first 84 constraints (the parameter)
 activeIndex(paramIndex) = [];
 numActiveBoundCons = numel(activeIndex);

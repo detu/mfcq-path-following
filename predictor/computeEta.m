@@ -1,4 +1,4 @@
-function [Eta, z] = computeEta(Jeq, g, y, cin)
+function [Eta, z] = computeEta(Jeq, g, y, cin, activeBoundTol)
 %COMPUTEETA Summary of this function goes here
 % 
 % [OUTPUTARGS] = COMPUTEETA(INPUTARGS) Explain usage here
@@ -20,7 +20,11 @@ function [Eta, z] = computeEta(Jeq, g, y, cin)
 % active bound constraints
 boundMultiplier    = y.lam_x;
 positiveBoundMult  = abs(boundMultiplier);
+if(isempty(activeBoundTol))
+    activeBoundTol = 1e-1;
+end
 activeIndex        = find(positiveBoundMult>1e-1);  % set active bound constraint.
+% activeIndex        = find(positiveBoundMult>activeBoundTol);
 paramIndex         = find(activeIndex <= 84);       % remove the first 84 constraints (the parameter)
 activeIndex(paramIndex) = [];
 numActiveBoundCons = numel(activeIndex);

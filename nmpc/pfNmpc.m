@@ -55,12 +55,12 @@ while(mpciter <= mpciterations)
     
     % check constraints on boundary
     x0_measure = max(min(x0_measure,1.0),0); % restrict to boundaries
-    if x0_measure(1,1) > 0.1; x0_measure(1,1) = 0.1; end
-    if x0_measure(84,1) > 0.7; x0_measure(84,1) = 0.7; end
+%     if x0_measure(1,1) > 0.1; x0_measure(1,1) = 0.1; end
+%     if x0_measure(84,1) > 0.7; x0_measure(84,1) = 0.7; end
     
     z1 = max(min(z1,1.0),0); % restrict to boundaries
-    if z1(1,1) > 0.1; z1(1,1) = 0.1; end
-    if z1(84,1) > 0.7; z1(84,1) = 0.7; end
+%     if z1(1,1) > 0.1; z1(1,1) = 0.1; end
+%     if z1(84,1) > 0.7; z1(84,1) = 0.7; end
 
 
     % advanced-step NMPC:
@@ -76,6 +76,7 @@ while(mpciter <= mpciterations)
     
     % choose number of path-following step
     delta_t = 0.5;   % initial deltaT
+    %delta_t = 0.25;
     
     lb_init = lb;
     ub_init = ub;
@@ -157,6 +158,10 @@ function [u, lamda, lbw, ubw, objVal, params] = solveOptimalControlProblem(optPr
     sol   = solver('x0', w0, 'lbx', lbw, 'ubx', ubw, 'lbg', lbg, 'ubg', ubg);
     elapsednlp = toc(startnlp);
     fprintf('IPOPT solver runtime = %f\n',elapsednlp);
+    success = strcmp(solver.stats.return_status,'Infeasible_Problem_Detected');
+    if (success)
+        keyboard;
+    end
 
     u           = full(sol.x);
     lamda.lam_g = full(sol.lam_g);
