@@ -50,7 +50,7 @@ xmeasure      = Xinit32(1:84);
 %xmeasure      = Xinit31(1:84);
 
 % either call iNMPC 
-%[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 % %save iNmpc.mat xmeasureAll uAll;   % without noise
 % %save iNmpcNoise.mat xmeasureAll uAll;
 % xmeasureAll_1pct = xmeasureAll;
@@ -58,7 +58,7 @@ xmeasure      = Xinit32(1:84);
 % save iNmpcNoise_1pct.mat xmeasureAll_1pct uAll_1pct;
 
 % or pf-NMPC
-[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+%[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 % save pfNmpc.mat xmeasureAll_pf uAll_pf; % without noise 
 % save pfNmpcNoise.mat xmeasureAll_pf uAll_pf;
 % xmeasureAll_pf_1pct = xmeasureAll_pf;
@@ -467,7 +467,7 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         indexU = (iter-1)*nk + (k+1);
         w0     = [w0;  u(:,indexU)];
         
-        Jcontrol   = (Qmax(nx+1:nx+nu,1).*(Uk - u_opt))' * (Uk - u_opt);
+        %Jcontrol   = (Qmax(nx+1:nx+nu,1).*(Uk - u_opt))' * (Uk - u_opt);
       
         % State at collocation points
         Xkj   = {};
@@ -520,7 +520,7 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         ubg = [ubg; zeros(nx,1)];
                
         Jecon  = (pf*F_0 + pV*Uk(2) - pB*Uk(5) - pD*Uk(4)) * delta_time;
-        Jstate =(Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
+        %Jstate =(Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
         
         alpha  = 1;
         beta   = 1;
@@ -533,7 +533,9 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
 %         load LamdaCstrDist.mat; % lamda
 %         Jmodel = lamda'*fm;
         
-        J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon;
+        %J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon;
+        J = beta*Jecon;
+        
     end
 end
 
