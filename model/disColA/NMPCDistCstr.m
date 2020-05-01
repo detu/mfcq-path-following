@@ -21,16 +21,17 @@ global N;
 % number of mpc iteration
 mpciterations = 150;
 % number of prediction horizon
-N             = 45;  
+%N             = 45;  
+N             = 60;
 % sampling time
 T             = 1;  % [minute]
 % initial controls (different initial conditions)
-load Xinit30.mat
-u0            = Xinit30(85:89);
+load Xinit31.mat
+u0            = Xinit31(85:89);
 u0            = repmat(u0,1,N);
 % get initial measurement (states) at time T = 0.
 tmeasure      = 0.0;
-xmeasure      = Xinit30(1:84);
+xmeasure      = Xinit31(1:84);
 
 % either call iNMPC 
 [~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
