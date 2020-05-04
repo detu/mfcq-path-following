@@ -21,17 +21,16 @@ global N;
 % number of mpc iteration
 mpciterations = 150;
 % number of prediction horizon
-%N             = 45;  
-N             = 60;
+N             = 45;  
 % sampling time
 T             = 1;  % [minute]
 % initial controls (different initial conditions)
-load Xinit31.mat
-u0            = Xinit31(85:89);
+load Xinit30.mat
+u0            = Xinit30(85:89);
 u0            = repmat(u0,1,N);
 % get initial measurement (states) at time T = 0.
 tmeasure      = 0.0;
-xmeasure      = Xinit31(1:84);
+xmeasure      = Xinit30(1:84);
 
 % either call iNMPC 
 [~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
@@ -77,6 +76,7 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     x_max =  ones(84,1);
     
     x_max(1)  = xB_max;
+    x_min(84) = 0.3;
     x_max(84) = 0.75;
     
     % Control bounds
@@ -300,12 +300,9 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         ubg = [ubg; zeros(nx,1)];
                
         Jecon  = (pf*F_0 + pV*Uk(2) - pB*Uk(5) - pD*Uk(4)) * delta_time;
-        
-        alpha  = 1;
-        beta   = 1;
-        gamma  = 1;
+        Jstate = (Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
 
-        J = beta*Jecon;
+        J = Jecon + Jstate;
         
     end
 end
