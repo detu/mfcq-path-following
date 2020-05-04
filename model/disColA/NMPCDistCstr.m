@@ -38,6 +38,8 @@ xmeasure      = Xinit30(1:84);
 % or pf-NMPC
 %[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 
+save results.mat xmeasureAll uAll runtime;
+
 keyboard;
 
 end
