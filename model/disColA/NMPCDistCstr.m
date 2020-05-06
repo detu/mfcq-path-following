@@ -20,240 +20,27 @@ format long;
 global N;
 % number of mpc iteration
 mpciterations = 150;
-%mpciterations = 2;
-%mpciterations = 5;
-%mpciterations = 20;
-%mpciterations = 50;   % 50 x 3
 % number of prediction horizon
-N             = 30;  
+N             = 45;  
 % sampling time
 T             = 1;  % [minute]
 % initial controls (different initial conditions)
-%load Xinit40.mat;  
-load Xinit32.mat;
-%load Xinit29.mat;  
-%load Xinit28.mat;
-%load Xinit30.mat
-%load Xinit31.mat;
-%u0            = Xinit40(85:89);
-%u0            = Xinit29(85:89);  % OK - written in the paper
-u0            = Xinit32(85:89);
-%u0            = Xinit28(85:89);
-%u0            = Xinit31(85:89);
+load Xinit30.mat
+u0            = Xinit30(85:89);
 u0            = repmat(u0,1,N);
 % get initial measurement (states) at time T = 0.
 tmeasure      = 0.0;
-%xmeasure      = Xinit40(1:84);
-%xmeasure      = Xinit29(1:84);
-xmeasure      = Xinit32(1:84);
-%xmeasure      = Xinit28(1:84);
-%xmeasure      = Xinit31(1:84);
+xmeasure      = Xinit30(1:84);
 
 % either call iNMPC 
 [~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
-% %save iNmpc.mat xmeasureAll uAll;   % without noise
-% %save iNmpcNoise.mat xmeasureAll uAll;
-% xmeasureAll_1pct = xmeasureAll;
-% uAll_1pct        = uAll;
-% save iNmpcNoise_1pct.mat xmeasureAll_1pct uAll_1pct;
 
 % or pf-NMPC
 %[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
-% save pfNmpc.mat xmeasureAll_pf uAll_pf; % without noise 
-% save pfNmpcNoise.mat xmeasureAll_pf uAll_pf;
-% xmeasureAll_pf_1pct = xmeasureAll_pf;
-% uAll_pf_1pct = uAll_pf;
-% save pfNmpcNoise_1pct.mat xmeasureAll_pf_1pct uAll_pf_1pct;
-%save pfNmpcWoHc.mat xmeasureAll_pf uAll_pf;
-%save pfNmpcPC.mat xmeasureAll_pf uAll_pf;
+
+save results.mat xmeasureAll uAll runtime;
 
 keyboard;
-
-%% THE CODE BELOW IS JUST FOR PLOTTING
-% load CstrDistXinit.mat;
-% xf    = Xinit(1:84);
-% u_opt = Xinit(85:89);
-% 
-% nu      = size(u0,1);
-% uAll    = reshape(uAll,nu,mpciterations);
-% uAll_pf = reshape(uAll_pf,nu,mpciterations);
-% 
-% % add initial control
-% uAll    = [u0(:,1) uAll];
-% uAll_pf = [u0(:,1) uAll_pf];
-% 
-% % add initial states
-% xmeasureAll    = horzcat(xmeasure,xmeasureAll);
-% xmeasureAll_pf = horzcat(xmeasure,xmeasureAll_pf);
-% 
-% %global nk;
-% %x = linspace(1,nk*N*T,mpciterations);
-% x = linspace(1,mpciterations,mpciterations/T);
-% xi = [0 x];
-% 
-% close all; % close all figures
-% 
-% figure(1);
-% clf;
-% % figure('Units', 'pixels', ...
-% %     'Position', [100 100 500 375]);
-% hold on;
-% hV_nlp = plot(x,obj,'LineWidth',6.0,'Color','g');
-% hold on;
-% hV_pf  = plot(x,obj_pf,'LineWidth',1.0,'Color','k');
-% hTitle  = title ('Objective functions comparison PF - NLP');
-% hXLabel = xlabel('Number of MPC iteration [-]'             );
-% hYLabel = ylabel('Objective function [-]'                  );
-% hLegend = legend( ...
-%   [hV_nlp, hV_pf],  ...
-%   'NLP: Obj. Func.' , ...
-%   'PF:  Obj. Func.' , ...
-%   'location', 'NorthWest' );
-% 
-% set( gca                       , ...
-%     'FontName'   , 'Helvetica' );
-% set([hTitle, hXLabel, hYLabel], ...
-%     'FontName'   , 'AvantGarde');
-% set([hLegend, gca]             , ...
-%     'FontSize'   , 8           );
-% set([hXLabel, hYLabel]  , ...
-%     'FontSize'   , 10          );
-% set( hTitle                    , ...
-%     'FontSize'   , 12          , ...
-%     'FontWeight' , 'bold'      );
-% 
-% set(gca, ...
-%   'Box'         , 'off'     , ...
-%   'TickDir'     , 'out'     , ...
-%   'TickLength'  , [.02 .02] , ...
-%   'XMinorTick'  , 'on'      , ...
-%   'YMinorTick'  , 'on'      , ...
-%   'YGrid'       , 'on'      , ...
-%   'XColor'      , [.3 .3 .3], ...
-%   'YColor'      , [.3 .3 .3], ...
-%   'LineWidth'   , 1         );
-% 
-% set(gcf, 'PaperPositionMode', 'auto');
-% % print -depsc2 ObjFunc.eps
-% 
-% 
-% 
-% figure(2);
-% clf;
-% plot(xi,xmeasureAll(1,:),'o','LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,xmeasureAll_pf(1,:),'*','LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, xf(1)*ones(1,mpciterations+1),'-r');
-% title ('x(1) comparison PF - NLP');
-% xlabel('Time [minute]'                      );
-% ylabel('Concentration [-]'                  );
-% 
-% 
-% figure(3);
-% clf;
-% %plot(xmeasureAll(2,:),'LineWidth',2.5);
-% plot(xi,xmeasureAll(21,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,xmeasureAll_pf(21,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, xf(21)*ones(1,mpciterations+1),'-r');
-% title ('x(21) comparison PF - NLP');
-% xlabel('Time [minute]'                      );
-% ylabel('Concentration [-]'                  );
-% 
-% 
-% figure(4);
-% clf;
-% plot(xi,xmeasureAll(41,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,xmeasureAll_pf(41,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, xf(41)*ones(1,mpciterations+1),'-r');
-% title ('x(41) comparison PF - NLP');
-% xlabel('Time [minute]'                      );
-% ylabel('Concentration [-]'                  );
-% 
-% figure(5);
-% clf;
-% %plot(xmeasureAll(3,:),'LineWidth',2.5);
-% plot(xi,xmeasureAll(42,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,xmeasureAll_pf(42,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, xf(42)*ones(1,mpciterations+1),'-r');
-% title ('x(42) comparison PF - NLP');
-% xlabel('Time [minute]'                      );
-% ylabel('Concentration [-]'                  );
-% 
-% figure(6);
-% clf;
-% %plot(xmeasureAll(3,:),'LineWidth',2.5);
-% plot(xi,xmeasureAll(82,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,xmeasureAll_pf(82,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, xf(82)*ones(1,mpciterations+1),'-r');
-% title ('x(82) comparison PF - NLP');
-% xlabel('Time [minute]'                      );
-% ylabel('Hold-up [-]'                        );
-% 
-% figure(7);
-% clf;
-% plot(xi,uAll(1,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,uAll_pf(1,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, u_opt(1,:)*ones(1,mpciterations+1),'-r');
-% title ('u(1)-LT: control input comparison PF - NLP');
-% xlabel('Time [minute]'                          );
-% ylabel('LT [m^3/minute]'                        );
-% 
-% figure(8);
-% clf;
-% plot(xi,uAll(2,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,uAll_pf(2,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, u_opt(2,:)*ones(1,mpciterations+1),'-r');
-% title ('u(2)-VB: control input comparison PF - NLP');
-% xlabel('Time [minute]'                          );
-% ylabel('VB [kmol/minute]'                        );
-% 
-% figure(9);
-% clf;
-% plot(xi,uAll(3,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,uAll_pf(3,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, u_opt(3,:)*ones(1,mpciterations+1),'-r');
-% title ('u(3)-F: control input comparison PF - NLP');
-% xlabel('Time [minute]'                          );
-% ylabel('F [kmol/minute]'                        );
-% 
-% figure(10);
-% clf;
-% plot(xi,uAll(4,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,uAll_pf(4,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, u_opt(4,:)*ones(1,mpciterations+1),'-r');
-% title ('u(4)-D: control input comparison PF - NLP');
-% xlabel('Time [minute]'                          );
-% ylabel('D [kmol/minute]'                        );
-% 
-% figure(11);
-% clf;
-% plot(xi,uAll(5,:),'LineWidth',6.0,'Color','g');
-% hold on;
-% plot(xi,uAll_pf(5,:),'LineWidth',1.0,'Color','k');
-% hold on;
-% plot(xi, u_opt(5,:)*ones(1,mpciterations+1),'-r');
-% title ('u(5)-B: control input comparison PF - NLP');
-% xlabel('Time [minute]'                          );
-% ylabel('B [kmol/minute]'                        );
-% 
-% keyboard;
 
 end
 
@@ -291,7 +78,8 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     x_max =  ones(84,1);
     
     x_max(1)  = xB_max;
-    x_max(84) = 0.7;
+    x_min(84) = 0.3;
+    x_max(84) = 0.75;
     
     % Control bounds
     u_min = [0.1; 0.1; 0.1; 0.1; 0.1];
@@ -346,7 +134,6 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     nu = 5;    % LT, VB, F, D, B
     nk = 1;
     tf = 1;   % in [minutes]
-    %tf = 3;    % 3 minutes
     h  = tf/nk;
     ns = 0;
     
@@ -467,7 +254,6 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         indexU = (iter-1)*nk + (k+1);
         w0     = [w0;  u(:,indexU)];
         
-        %Jcontrol   = (Qmax(nx+1:nx+nu,1).*(Uk - u_opt))' * (Uk - u_opt);
       
         % State at collocation points
         Xkj   = {};
@@ -507,10 +293,6 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         w   = {w{:}, Xk};
         lbw = [lbw; x_min];
         ubw = [ubw; x_max];
-%         x_maxEnd       =  ones(84,1);
-%         x_maxEnd(1,1)  = 0.1;
-%         x_maxEnd(84,1) = 0.7;
-%         ubw = [ubw; x_maxEnd];
         w0  = [w0; x(iter+1,:)'];
         count  = count + 1;
 
@@ -520,21 +302,9 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         ubg = [ubg; zeros(nx,1)];
                
         Jecon  = (pf*F_0 + pV*Uk(2) - pB*Uk(5) - pD*Uk(4)) * delta_time;
-        %Jstate =(Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
-        
-        alpha  = 1;
-        beta   = 1;
-        gamma  = 1;
+        Jstate = (Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
 
-        
-%         % compute rotated cost function
-%         fm  = f(Xk,Uk);
-%         % load Lagrange multipliers from steady-state optimization
-%         load LamdaCstrDist.mat; % lamda
-%         Jmodel = lamda'*fm;
-        
-        %J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon;
-        J = beta*Jecon;
+        J = Jecon + Jstate;
         
     end
 end
