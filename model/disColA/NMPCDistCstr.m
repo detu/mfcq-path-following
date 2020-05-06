@@ -21,25 +21,25 @@ global N;
 % number of mpc iteration
 mpciterations = 150;
 % number of prediction horizon
-N             = 45;  
+N             = 45;
+
 % sampling time
 T             = 1;  % [minute]
 % initial controls (different initial conditions)
-load Xinit30.mat
-u0            = Xinit30(85:89);
+load Xinit3075.mat
+u0            = Xinit3075(85:89);
 u0            = repmat(u0,1,N);
 % get initial measurement (states) at time T = 0.
 tmeasure      = 0.0;
-xmeasure      = Xinit30(1:84);
+xmeasure      = Xinit3075(1:84);
 
-% either call iNMPC 
-[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+load Xopt3175Horizon90.mat
+xGuess = Xopt;
 
-% or pf-NMPC
-%[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+% new iNmpcDual that collect dual variable as well 
+[~, xmeasureAll, uAll, obj, primalRes, dualRes, params, runtime] = iNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
 
-save results.mat xmeasureAll uAll runtime;
-
+save results.mat xmeasureAll uAll dualRes runtime;
 keyboard;
 
 end
@@ -57,76 +57,77 @@ function y = system(t, x, u, T)
     
 end
 
-function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %add prediction horizon 
+function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)    %add prediction horizon 
     import casadi.*
+    
+    %xc = 10;
+    xc = 1;
+    %scaling for bottom concentration
+    %x(:,1) = xc/10;
     
     % the model
     NT = 41;
-    Uf = 0.3;           % Feeding rate F_0
+    global Uf;
+    Uf = 0.31;           % Feeding rate F_0
     
     % invoke the model
     [~,state,xdot,inputs] = DistColACstr(Uf);
-    f = Function('f',{state,inputs}, {xdot});
+    %[~,state,xdot,inputs] = DistColACstrScaled(Uf);  % with scaled equations
+    %f = Function('f',{state,inputs}, {xdot});
+    
+    % objective function value
+    obj = computeObjectiveFunction(state,inputs);
+ 
+    f = Function('f',{state,inputs}, {xdot,obj});
     
     % bound constraints
     VB_max = 4.008;
-    xB_max = 0.1;
+    xB_max = xc/10;    %scaled bottom concentration
     
     
     % State bounds and initial guess
     x_min =  zeros(84,1);  % try without epsilon here, later put epsilon
     x_max =  ones(84,1);
     
-    x_max(1)  = xB_max;
     x_min(84) = 0.3;
+    x_max(1)  = xB_max; % scaled bottom concentration
     x_max(84) = 0.75;
+
     
     % Control bounds
     u_min = [0.1; 0.1; 0.1; 0.1; 0.1];
     u_max = [10; VB_max; 10; 1.0; 1.0];
     
+    % soft constraint bounds
+    sc_min = 0;
+    sc_max = 1e6;
+    
     % compact bound variable for ease of function invocation 
-    params.bound.x_min = x_min;
-    params.bound.x_max = x_max;
-    params.bound.u_min = u_min;
-    params.bound.u_max = u_max;
+    params.bound.x_min  = x_min;
+    params.bound.x_max  = x_max;
+    params.bound.u_min  = u_min;
+    params.bound.u_max  = u_max;
+    params.bound.sc_min = sc_min;
+    params.bound.sc_max = sc_max;
     
     % Construct objective function
     load CstrDistXinit.mat;
     xf    = Xinit(1:84);
+    xf(1) = xc*xf(1);          % scaled bottom concentration
     u_opt = Xinit(85:89);
     
     % prices
     pf = 1; 
     pV = 0.02;
-    pB = 2; 
+    pB = 2;
     pD = 0;
 
-    
     % compact price variable
     params.price.pf = pf;
     params.price.pV = pV;
     params.price.pB = pB;
     params.price.pD = pD;
     params.price.F_0= Uf;
-
-    % controller gains
-    KcB = 10;  
-    KcD = 10;
-    % Nominal holdups - these are rather small 
-    MDs = 0.5; 
-    MBs = 0.5;         
-    % Nominal flows
-    Ds  = 0.5; 
-    Bs  = 0.5;
-    
-    % compact controller gain variable
-    params.gain.KcB = KcB;
-    params.gain.KcD = KcD;
-    params.gain.MDs = MDs;
-    params.gain.MBs = MBs;
-    params.gain.Ds  = Ds;
-    params.gain.Bs  = Bs;
     
     % dimensions
     global nx nu nk d tf ns;
@@ -148,12 +149,13 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
 
 
     % preparing collocation matrices
-    [~,C,D,d] = collocationSetup();
+    [B,C,D,d] = collocationSetup();
     
     % compact collocation variable
     params.colloc.C = C;
     params.colloc.D = D;
     params.colloc.h = h;
+    params.colloc.B = B;
 
     % start with an empty NLP
     w   = {};      % decision variables contain both control and state variables
@@ -182,7 +184,10 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     w   = {w{:}, X0};
     lbw = [lbw; x_min];
     ubw = [ubw; x_max];
-    w0  = [w0; x(1,1:nx)'];
+    
+    %w0  = [w0; x(1,1:nx)'];
+    w0  = [w0; x0_measure];
+    
     g   = {g{:}, X0 - x0_measure};  % USE MEASUREMENT HERE !
     lbg = [lbg; zeros(nx,1)];
     ubg = [ubg; zeros(nx,1)];
@@ -190,12 +195,13 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)   %
     % formulate the NLP
     Xk = X0;
 
-    
     load Qmax.mat;
     params.Qmax = Qmax;
+   
     
     % HERE SHOULD BE LOOP N-TIMES ACCORDING TO THE NUMBER OF PREDICTION HORIZON
-    count  = 2; % counter for state variable as initial guess
+    %count  = 2; % counter for state variable as initial guess
+    count = 1;
     ssoftc = 0;
     for i=1:N
         [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPredictionHorizon(Xk, w, w0, lbw, ubw, lbg, ubg, g, J, params, i, count,ssoftc);
@@ -210,12 +216,14 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
    import casadi.*
    global N;
    % extract compact variables
-   x_min = params.bound.x_min;
-   x_max = params.bound.x_max;
-   u_min = params.bound.u_min;
-   u_max = params.bound.u_max;
+   x_min  = params.bound.x_min;
+   x_max  = params.bound.x_max;
+   u_min  = params.bound.u_min;
+   u_max  = params.bound.u_max;
+   sc_min = params.bound.sc_min;
+   sc_max = params.bound.sc_max;
    
-   NT = params.model.NT;
+   
    f  = params.model.f;
    xdot_val_rf_ss = params.model.xdot_val_rf_ss;
    x = params.model.x;
@@ -228,25 +236,20 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
    pD = params.price.pD;
    F_0= params.price.F_0;
    
-   KcB = params.gain.KcB;
-   KcD = params.gain.KcD;
-   MDs = params.gain.MDs;
-   MBs = params.gain.MBs;
-   Ds  = params.gain.Ds;
-   Bs  = params.gain.Bs;
-   
    C = params.colloc.C;
    D = params.colloc.D;
    h = params.colloc.h;
+   B = params.colloc.B;
    
    delta_time = params.weight.delta_time;
    Qmax = params.Qmax;
    
-   global nx nu nk d ns;
+   global nx nu nk d tf ns;
+   
 
+% with collocation method
    for k=0:nk-1
         % New NLP variable for the control
-        %Uk  = MX.sym(['U_' num2str(k)], nu);
         Uk     = MX.sym(['U_' num2str((iter-1)*nk+k)], nu);
         w      = {w{:}, Uk};
         lbw    = [lbw; u_min];
@@ -254,21 +257,29 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         indexU = (iter-1)*nk + (k+1);
         w0     = [w0;  u(:,indexU)];
         
+        Jcontrol   = (Qmax(nx+1:nx+nu,1).*(Uk - u_opt))' * (Uk - u_opt);
       
         % State at collocation points
         Xkj   = {};
-        SumX1 = 0;
+        Skj   = {};
+        Ekj   = {};
+        Jcoll = 0;
+        sumE  = {};
         for j=1:d
             Xkj{j} = MX.sym(['X_' num2str((iter-1)*nk+k) '_' num2str(j)], nx);
             w      = {w{:}, Xkj{j}};
             lbw    = [lbw; x_min];
             ubw    = [ubw; x_max];
-            w0     = [w0; x(iter+1,:)'];
+
+            w0     = [w0; x(:,count)];
             count  = count + 1;
+                        
+            Jcoll = Jcoll + (Qmax(1:nx,1).*(Xkj{j} - xdot_val_rf_ss))' * (Xkj{j} - xdot_val_rf_ss) * delta_time;
+
         end
 
         % Loop over collocation points
-        Xk_end = D(1)*Xk; 
+        Xk_end = D(1)*Xk;
 
         for j=1:d
            % Expression for the state derivative at the collocation point
@@ -278,7 +289,8 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
            end
 
            % Append collocation equations
-           fj  = f(Xkj{j},Uk);
+           %fj  = f(Xkj{j},Uk);
+           [fj, qj] = f(Xkj{j},Uk);
            g   = {g{:}, h*fj - xp};
            lbg = [lbg; zeros(nx,1)];
            ubg = [ubg; zeros(nx,1)];
@@ -286,27 +298,35 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
            % Add contribution to the end state
            Xk_end = Xk_end + D(j+1)*Xkj{j};
            
+           %J = J + B(j+1)*qj*h;
         end    
 
         % New NLP variable for state at end of interval
         Xk  = MX.sym(['X_' num2str((iter-1)*nk+k)], nx);
         w   = {w{:}, Xk};
+        
         lbw = [lbw; x_min];
         ubw = [ubw; x_max];
-        w0  = [w0; x(iter+1,:)'];
+        w0   = [w0; x(:,count)];
         count  = count + 1;
 
         % Add equality constraint
         g   = {g{:}, (Xk_end-Xk)};
         lbg = [lbg; zeros(nx,1)];
         ubg = [ubg; zeros(nx,1)];
+       
                
         Jecon  = (pf*F_0 + pV*Uk(2) - pB*Uk(5) - pD*Uk(4)) * delta_time;
-        Jstate = (Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
+        Jstate =(Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
+        
+        alpha  = 0;
+        beta   = 1;
+        gamma  = 1;
 
-        J = Jecon + Jstate;
+        J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon + Jcoll;
         
     end
+
 end
 
 
