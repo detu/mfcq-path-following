@@ -4,9 +4,9 @@ folder = fileparts(which(mfilename));
 addpath(genpath(folder));
 
 %addpath('C:\Data\work\casadi-matlabR2014b-v3.1.0-rc1');
-addpath('C:\Data\work\casadi-matlabR2014b-v3.2.0');
-addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio1271\cplex\matlab\x64_win64');
-addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio1271\cplex\examples\src\matlab');
+%addpath('C:\Data\work\casadi-matlabR2014b-v3.2.0');
+%addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio1271\cplex\matlab\x64_win64');
+%addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio1271\cplex\examples\src\matlab');
 
 % disable warning message
 warning off;
