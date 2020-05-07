@@ -65,12 +65,9 @@ while(mpciter <= mpciterations)
     
     % check constraints on boundary
     x0_measure = max(min(x0_measure,1.0),0); % restrict to boundaries
-    if x0_measure(1,1) > xc/10; x0_measure(1,1) = xc/10; end    %scaling on bottom concentration
-    if x0_measure(84,1) > 0.75; x0_measure(84,1) = 0.75; end
-
-
+    %if x0_measure(1,1) > xc/10; x0_measure(1,1) = xc/10; end    %scaling on bottom concentration
+    %if x0_measure(84,1) > 0.75; x0_measure(84,1) = 0.75; end
      
-
     % ideal NMPC:
     [primalData, dualData, lb, ub, ~, params, elapsedtime] = solveOptimalControlProblem(optProblem, system, N, t0, x0, u0, T, mpciter, u_nlp_opt, x_nlp_opt, x0_measure, xGuess);
 
