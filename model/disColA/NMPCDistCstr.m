@@ -16,16 +16,13 @@ function NMPCDistCstr
 
 import casadi.* 
 format long;
-
 global N;
 % number of mpc iteration
 mpciterations = 150;
 % number of prediction horizon
 N             = 45;
-
 % sampling time
 T             = 1;  % [minute]
-% initial controls (different initial conditions)
 load Xinit3075.mat
 u0            = Xinit3075(85:89);
 u0            = repmat(u0,1,N);
@@ -36,10 +33,31 @@ xmeasure      = Xinit3075(1:84);
 load Xopt3175Horizon90.mat
 xGuess = Xopt;
 
+
+% either call iNMPC 
+%[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+
 % new iNmpcDual that collect dual variable as well 
 [~, xmeasureAll, uAll, obj, primalRes, dualRes, params, runtime] = iNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
-
+% save iNmpcDual.mat xmeasureAll uAll obj primalRes dualRes params runtime;
 save results.mat xmeasureAll uAll dualRes runtime;
+
+% compute number of active-bound constraints
+%[~, xmeasureAll, uAll, obj, optRes, params, runtime, numActiveBoundRecord] = iNmpcActiveBound(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+
+
+% or pf-NMPC
+%[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord, nActiveChange] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+
+%[~, xmeasureAll_pf, uAll_pf, obj_pf, primalRes_pf, dualRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord, nActiveChange] = pfNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
+%save pfNmpcDual.mat xmeasureAll_pf uAll_pf obj_pf primalRes_pf dualRes_pf params_pf runtime_pf etaRecord numActiveBoundRecord nActiveChange;
+
+%[~, xmeasureAll_pfm, uAll_pfm, obj_pfm, primalRes_pfm, dualRes_pfm, params_pfm, runtime_pfm, etaRecordm, numActiveBoundRecordm, nActiveChangem] = pfNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+%save pfNmpcDualm.mat xmeasureAll_pfm uAll_pfm obj_pfm primalRes_pfm dualRes_pfm params_pfm runtime_pfm etaRecordm numActiveBoundRecordm nActiveChangem;
+
+%keyboard;
+
+
 
 end
 
@@ -68,6 +86,9 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)    
     NT = 41;
     global Uf;
     Uf = 0.31;           % Feeding rate F_0
+    %Uf = 0.30;
+    %Uf = 0.3101; % OK
+    %Uf = 0.3105; % OK
     
     % invoke the model
     [~,state,xdot,inputs] = DistColACstr(Uf);
@@ -81,6 +102,7 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)    
     
     % bound constraints
     VB_max = 4.008;
+    %xB_max = 0.1;
     xB_max = xc/10;    %scaled bottom concentration
     
     
@@ -88,9 +110,10 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)    
     x_min =  zeros(84,1);  % try without epsilon here, later put epsilon
     x_max =  ones(84,1);
     
-    %x_min(84) = 0.3;
-    x_max(1)  = xB_max; % scaled bottom concentration
-    x_max(84) = 0.75;
+%     %x_min(84) = 0.3;
+%     x_min(84) = 0.74;
+     x_max(1)  = xB_max; % scaled bottom concentration
+     x_max(84) = 0.75;
 
     
     % Control bounds
@@ -113,7 +136,9 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)    
     load CstrDistXinit.mat;
     xf    = Xinit(1:84);
     xf(1) = xc*xf(1);          % scaled bottom concentration
+    %xf    = Xinit(1:84)./0.1; %scaled state
     u_opt = Xinit(85:89);
+    %u_opt = Xinit(85:89)./10; %scaled control
     
     % prices
     pf = 1; 
@@ -184,7 +209,6 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)    
     lbw = [lbw; x_min];
     ubw = [ubw; x_max];
     
-    %w0  = [w0; x(1,1:nx)'];
     w0  = [w0; x0_measure];
     
     g   = {g{:}, X0 - x0_measure};  % USE MEASUREMENT HERE !
@@ -269,12 +293,13 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
             w      = {w{:}, Xkj{j}};
             lbw    = [lbw; x_min];
             ubw    = [ubw; x_max];
-
             w0     = [w0; x(:,count)];
+            
+            
+            %w0     = [w0; x(iter+1,:)'; 0; 0];
             count  = count + 1;
-                        
             Jcoll = Jcoll + (Qmax(1:nx,1).*(Xkj{j} - xdot_val_rf_ss))' * (Xkj{j} - xdot_val_rf_ss) * delta_time;
-
+            
         end
 
         % Loop over collocation points
@@ -297,34 +322,31 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
            % Add contribution to the end state
            Xk_end = Xk_end + D(j+1)*Xkj{j};
            
-           %J = J + B(j+1)*qj*h;
+           J = J + B(j+1)*qj*h;
         end    
 
         % New NLP variable for state at end of interval
         Xk  = MX.sym(['X_' num2str((iter-1)*nk+k)], nx);
-        w   = {w{:}, Xk};
         
+        w   = {w{:}, Xk};
+
         lbw = [lbw; x_min];
         ubw = [ubw; x_max];
-        w0   = [w0; x(:,count)];
+        w0  = [w0; x(:,count)];
         count  = count + 1;
 
         % Add equality constraint
         g   = {g{:}, (Xk_end-Xk)};
         lbg = [lbg; zeros(nx,1)];
         ubg = [ubg; zeros(nx,1)];
-       
+        
                
         Jecon  = (pf*F_0 + pV*Uk(2) - pB*Uk(5) - pD*Uk(4)) * delta_time;
         Jstate =(Qmax(1:nx,1).*(Xk - xdot_val_rf_ss))' * (Xk - xdot_val_rf_ss) * delta_time;
         
-        alpha  = 0;
+        alpha  = 1;
         beta   = 1;
         gamma  = 1;
-
-        J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon + Jcoll;
-		%J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon;
-        
     end
 
 end

@@ -28,7 +28,6 @@ pV = 0.02;
 pB = 2;
 pD = 0;
 
-
 Jstate     = (Qmax(1:nx,1).*(x - xf))' * (x - xf);
 Jecon      = (pf*F_0 + pV*u(2) - pB*u(5));
 L          = Jecon + Jstate;

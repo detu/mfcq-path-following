@@ -111,37 +111,47 @@ function [y, qp_val, qp_exit, lamda, elapsedqp] = solve_qp(prob, p, x_init, y_in
     % QP setup
     A   = [];
     b   = [];
-    f   = Lxp * step + g;
+    f   = sparse(Lxp * step + g);
+    %f   = Lxp * step;
     
     % Only Equality Constraint
-    ceq  = cin;
+    ceq  = sparse(cin);
     Aeq  = Jeq;
-    beq  = dpe*step + ceq;   %OK
+    beq  = sparse(dpe*step + ceq);   %OK
 
        
-    % CHECK LAGRANGE MULTIPLIERS FROM BOUND CONSTRAINTS 
-    lmC = abs(y_init.lam_x);
-    bAc = find(lmC >= 1e-3);
-    
-    % build equality constraint from active bound constraints
-    numBaC = size(bAc,1);
-    for i=1:numBaC        
-        % put strongly active constraint on boundary
-        indB         = bAc(i);
-        
-        ub(indB)     = 0;        % keep upper bound on boundary
-        lb(indB)     = 0; 
-        
+%     % CHECK LAGRANGE MULTIPLIERS FROM BOUND CONSTRAINTS 
+%     lmC = abs(y_init.lam_x);
+%     bAc = find(lmC >= 1e-3);
+%     
+%     % build equality constraint from active bound constraints
+%     numBaC = size(bAc,1);
+%     for i=1:numBaC        
+%         % put strongly active constraint on boundary
+%         indB         = bAc(i);
+%         
+%         ub(indB)     = 0;        % keep upper bound on boundary
+%         lb(indB)     = 0; 
+%         
+%     end
+
+    % modify Hessian matrix
+    [~,~,E,pneg]=mcholmz1(H);
+    if isempty(pneg)
+        Hm = H;
+    else
+        Hm = sparse(H+E);
     end
 
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Finally solve QP problem
     %%%%%%%%%%%%%%%%%%%%%%%%%%%
-    Prob   = qpAssign(H, f, Aeq, beq, beq, lb, ub);
-    Prob.optParam.eps_x = 1e-7;
-    Prob.optParam.fTol  = 1e-7;
-    Prob.optParam.xTol  = 1e-7;
+    %Prob   = qpAssign(H, f, Aeq, beq, beq, lb, ub);
+    Prob   = qpAssign(Hm, f, Aeq, beq, beq, lb, ub);
+%     Prob.optParam.eps_x = 1e-7;
+%     Prob.optParam.fTol  = 1e-7;
+%     Prob.optParam.xTol  = 1e-7;
     %Prob.PriLevOpt = 5;
     %Prob.PriLev = 1;
     startqp  = tic;
@@ -150,14 +160,17 @@ function [y, qp_val, qp_exit, lamda, elapsedqp] = solve_qp(prob, p, x_init, y_in
     elapsedqp = toc(startqp);
     fprintf('QP solver runtime: %f\n',elapsedqp);
     qp_exit = Result.ExitFlag;
+    numX    = size(x_init,1);
     if qp_exit == 0
         y       = Result.x_k;
         qp_val  = Result.f_k;
     else
+        y      = zeros(numX,1);
+        qp_val = 0;
         keyboard;
     end
 
-    numX        = size(x_init,1);
+    %numX        = size(x_init,1);
     lamda.lam_x = Result.v_k(1:numX);
     lamda.lam_g = -Result.v_k(numX+1:end);
     fprintf('QP return: %d\n', qp_exit);

@@ -14,7 +14,6 @@ function xprime=mod_cstr(t,X,U)
 
 
 %% CSTR model
-
 % parameter values
 V   = 10;   % Volume in [L]
 k   = 1.2;  % Reaction rate in [L / (mol * minute)]

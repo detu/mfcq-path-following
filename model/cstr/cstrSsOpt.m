@@ -23,6 +23,7 @@ import casadi.*
 % parameter values
 V   = 10;   % Volume in [L]
 k   = 1.2;  % Reaction rate in [L / (mol * minute)]
+%k   = 3.0;
 Caf = 1;    % Feeding concentration [mol/L]
 
 % symbolic primitives
@@ -33,11 +34,15 @@ x2 = SX.sym('x2');  % Cb
 % concatenate states and controls 
 x   = [x1;x2;u];
 
+% price setting
+pQ  = 1;
+pC  = 1;
+
 % initial guess
 Uinit = [0.1;0.1;15];
 
 % define the dynamics as equality constraints and additional inequality constraints
-[obj,eq, lbx, ubx, lbg, ubg] = buildModelEq(x,V,k,Caf);
+[obj,eq, lbx, ubx, lbg, ubg] = buildModelEq(x,V,k,Caf,pC,pQ);
 
 prob    = struct('f', obj, 'x', x, 'g', eq);
 options = struct;
@@ -54,6 +59,8 @@ fprintf('IPOPT solver runtime = %f\n',elapsednlp);
 u      = full(sol.x);
 lamda  = full(sol.lam_g);
 Xinit  = u;
+
+keyboard;
 save CstrXinit.mat Xinit;
 save LamdaCstr.mat lamda;
 
@@ -104,7 +111,7 @@ rHe    = null(Jeval)'*Hconv*null(Jeval);
 keyboard;
 end
 
-function [J, ceq, lbx, ubx, lbg, ubg] = buildModelEq(u,V,k,Caf)
+function [J, ceq, lbx, ubx, lbg, ubg] = buildModelEq(u,V,k,Caf,pC,pQ)
 import casadi.* 
 
 Ca = u(1);
@@ -112,7 +119,8 @@ Cb = u(2);
 Q  = u(3);
 
 % objective function 
-J = -Q*(2*Cb - 0.5);
+%J = -Q*(2*Cb - 0.5);
+J = -Q*(pC*Cb - pQ);
 
 % CSTR model
 % define xdot

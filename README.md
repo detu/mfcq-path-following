@@ -1,11 +1,1 @@
-Path-following for dual-degenerate cases
-
-examples:
-predictorCorrectorDualDegenerate(@(p)case1(p), 0,1,[0;0;0],[0;0.5;0;0.5;0;0;0],1.2)
-predictorCorrectorDualDegenerate(@(p)case1(p), 0,1,[0;0;0],[0;0;1;0;0;0;0],1.2)
-
-predictorCorrector(@(p)case1(p), 0,1,[0;0;0],[0;0.5;0;0.5;0;0;0],1.2)
-predictorCorrector(@(p)case1(p), 0,1,[0;0;0],[0;0;1;0;0;0;0],1.2)
-
-predictorCorrectorSLQP(@(p)case1(p), 0,1,[0;0;0],[0;0.5;0;0.5;0;0;0],1.2)
-predictorCorrectorSLQP(@(p)case1(p), 0,1,[0;0;0],[0;0;1;0;0;0;0],1.2)
+Simulation for Economic NMPC described in paper "Fast sensitivity-based economic model predictive control for degenerate systems" which can be downloaded at https://doi.org/10.1016/j.jprocont.2020.02.006 . 

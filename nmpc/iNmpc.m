@@ -26,7 +26,7 @@ x_nlp_opt   = [];
 u_nlp_opt   = [];
 mpciter = 1;
 
-%load noise1pct.mat;
+load noise1pct.mat;
 
 global nx;
 
@@ -38,22 +38,31 @@ while(mpciter <= mpciterations)
     % obtain new initial value
     [t0, x0] = measureInitialValue ( tmeasure, xmeasure );
     
+%     % mesti cut buat x0 juga!
+    x0 = max(min(x0,1.0),0); % restrict to boundaries
+    if x0(1,1) > 0.1; x0(1,1) = 0.1; end
+    if x0(84,1) > 0.7; x0(84,1) = 0.7; end
+%     if x0(2,1) < 0.49; x0(2,1) = 0.49; end
+    
     % add measurement error to x0
-    %holdupNoise        = noise(:,mpciter);
-    %concentrationNoise = zeros(42,1);
-    %measNoise          = [concentrationNoise;holdupNoise];
+    holdupNoise        = noise(:,mpciter);
+    concentrationNoise = zeros(42,1);
+    measNoise          = [concentrationNoise;holdupNoise];
     %x0_measure         =  x0 + 0*measNoise;    % without noise
-    %x0_measure         =  x0 + measNoise;
-    x0_measure         =  x0;
+    x0_measure         =  x0 + measNoise;
+%      dummyNoise         = noise(1:2,mpciter);   % SHOULD GENERATE OWN NOISE !!!
+%      x0_measure         =  x0 + dummyNoise;
     
-    % check constraints on boundary
-    %x0_measure = max(min(x0_measure,1.0),0); % restrict to boundaries
-%     if x0_measure(1,1) > 0.1; x0_measure(1,1) = 0.1; end
-%     if x0_measure(84,1) > 0.7; x0_measure(84,1) = 0.7; end
-    
+%     % check constraints on boundary
+    x0_measure = max(min(x0_measure,1.0),0); % restrict to boundaries
+    if x0_measure(1,1) > 0.1; x0_measure(1,1) = 0.1; end
+    if x0_measure(84,1) > 0.7; x0_measure(84,1) = 0.7; end
+%     if x0_measure(2,1) < 0.49; x0_measure(2,1) = 0.49; end
+     
 
     % ideal NMPC:
-    [primalNLP, ~, lb, ub, ~, params, elapsedtime] = solveOptimalControlProblem(optProblem, system, N, t0, x0, u0, T, mpciter, u_nlp_opt, x_nlp_opt, x0_measure);
+    %[primalNLP, ~, lb, ub, ~, params, elapsedtime] = solveOptimalControlProblem(optProblem, system, N, t0, x0, u0, T, mpciter, u_nlp_opt, x_nlp_opt, x0_measure);
+    [primalNLP, dualNLP, lb, ub, ~, params, elapsedtime] = solveOptimalControlProblem(optProblem, system, N, t0, x0, u0, T, mpciter, u_nlp_opt, x_nlp_opt, x0_measure);
     
     % re-arrange NLP results
     [u_nlp_opt, x_nlp_opt] = plotStatesN(primalNLP, lb, ub, N);  
@@ -72,11 +81,13 @@ while(mpciter <= mpciterations)
     
     % Apply control to process with optimized control from path-following
     % algorithm. 
-    x0 = xmeasure;  % from the online step 
+    %x0 = xmeasure;  % from the online step 
+    x0 = x0_measure; % NEW CHANGE 28.09.2017
     [tmeasure, xmeasure] = applyControl(system, T, t0, x0, u_nlp_opt);
     
-    ObjVal(mpciter) = computeObjectiveFunctionValues(u_nlp_opt(:,1),xmeasure); % USING ACTUAL STATE!
-    
+    ObjVal(mpciter) = computeObjectiveFunctionValues(u_nlp_opt(:,1),xmeasure); % 
+    %ObjVal(mpciter) = mpciter; % DUMMY!
+    %ObjVal(mpciter) = computeObjFuncCstr(u_nlp_opt(:,1),xmeasure); % CSTR only
     
     % store output variables
     xmeasureAll = [xmeasureAll;xmeasure];
@@ -88,7 +99,7 @@ while(mpciter <= mpciterations)
     
     mpciter = mpciter+1;
 end
-xmeasureAll = reshape(xmeasureAll,84,mpciterations); 
+xmeasureAll = reshape(xmeasureAll,nx,mpciterations);    
 %save iNmpcData.mat iNmpcData;
 end
 
@@ -99,6 +110,7 @@ end
 
 function [tapplied, xapplied] = applyControl(system, T, t0, x0, u0)
     xapplied = dynamic(system, T, t0, x0, u0(:,1));
+    %xapplied = dynamic(system, T, t0, x0, round(u0(:,1),1));
     tapplied = t0+T;
 end
 
@@ -118,14 +130,15 @@ function [u, lamda, lbw, ubw, objVal, params, elapsednlp] = solveOptimalControlP
     [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u0, N, x0_measure);
     prob = struct('f', J, 'x', vertcat(w{:}), 'g', vertcat(g{:}));
     options = struct;
-    %options.ipopt.tol       = 1e-12;
-    %options.acceptable_compl_inf_tol    = 1e-6; 
+    options.ipopt.tol                = 1e-12;
+    options.ipopt.constr_viol_tol    = 1e-12;  
     solver = nlpsol('solver', 'ipopt', prob, options);
     
     % Solve the NLP
     startnlp   = tic;
     sol        = solver('x0', w0, 'lbx', lbw, 'ubx', ubw, 'lbg', lbg, 'ubg', ubg);
     elapsednlp = toc(startnlp);
+    %elapsednlp = solver.stats.t_wall_mainloop;
     fprintf('IPOPT solver runtime = %f\n',elapsednlp);
     success = strcmp(solver.stats.return_status,'Infeasible_Problem_Detected');
     if (success)
