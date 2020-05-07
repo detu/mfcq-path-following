@@ -40,7 +40,6 @@ xGuess = Xopt;
 [~, xmeasureAll, uAll, obj, primalRes, dualRes, params, runtime] = iNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
 
 save results.mat xmeasureAll uAll dualRes runtime;
-keyboard;
 
 end
 
@@ -89,7 +88,7 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,params] = optProblem(x, u, N, x0_measure)    
     x_min =  zeros(84,1);  % try without epsilon here, later put epsilon
     x_max =  ones(84,1);
     
-    x_min(84) = 0.3;
+    %x_min(84) = 0.3;
     x_max(1)  = xB_max; % scaled bottom concentration
     x_max(84) = 0.75;
 
@@ -324,6 +323,7 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         gamma  = 1;
 
         J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon + Jcoll;
+		%J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon;
         
     end
 
