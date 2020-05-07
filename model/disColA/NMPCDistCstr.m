@@ -40,7 +40,6 @@ xGuess = Xopt;
 [~, xmeasureAll, uAll, obj, primalRes, dualRes, params, runtime] = iNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
 
 save results.mat xmeasureAll uAll dualRes runtime;
-keyboard;
 
 end
 
