@@ -1,4 +1,4 @@
-function [Eta, z] = computeEta(Jeq, g, y, cin, activeBoundTol)
+function [Eta, z, numActiveBoundCons] = computeEta(Jeq, g, y, cin, activeBoundTol)
 %COMPUTEETA Summary of this function goes here
 % 
 % [OUTPUTARGS] = COMPUTEETA(INPUTARGS) Explain usage here
@@ -25,8 +25,8 @@ if(isempty(activeBoundTol))
 end
 activeIndex        = find(positiveBoundMult>1e-1);  % set active bound constraint.
 % activeIndex        = find(positiveBoundMult>activeBoundTol);
-paramIndex         = find(activeIndex <= 84);       % remove the first 84 constraints (the parameter)
-activeIndex(paramIndex) = [];
+%paramIndex         = find(activeIndex <= 84);       % remove the first 84 constraints (for distillation case!)
+%activeIndex(paramIndex) = [];
 numActiveBoundCons = numel(activeIndex);
 
 [numY,m] = size(Jeq);
@@ -36,11 +36,13 @@ for i=1:numActiveBoundCons
     JAbc(i,row) = 1;
 end
 
-Jeq     = [Jeq;JAbc];
-
-%z       = g + Jeq'*y.lam_g + y.lam_x;
-z       = g + Jeq'*([y.lam_g; y.lam_x(activeIndex)]);
+%z       = g + Jeq'*y.lam_g + JAbc'*y.lam_x(activeIndex);
+z       = g + Jeq'*y.lam_g + y.lam_x;
+%z       = g + Jeq'*y.lam_g;
+%Jm      = [Jeq;JAbc];
+%z       = g + Jm'*([y.lam_g; y.lam_x(activeIndex)]);
 stackLC = [cin;z];
-Eta     = 0.1*norm(stackLC,inf);
+%Eta     = 1e-3*norm(stackLC,inf);
+Eta     = norm(stackLC,inf);
 
 end

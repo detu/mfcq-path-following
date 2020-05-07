@@ -3,7 +3,10 @@ function [B,C,D,d] = collocationSetup()
 import casadi.*
 
 % Degree of interpolating polynomial
+%d = 4;
 d = 3;
+%d = 2;
+%d = 1;
 
 % Get collocation points
 tau_root = [0 collocation_points(d, 'legendre')];

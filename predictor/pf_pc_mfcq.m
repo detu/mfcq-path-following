@@ -1,4 +1,4 @@
-function [x_init, y_init, elapsedqp, etaRecord, numActiveBoundRecord] = pf_pc_mfcq(problem, p_init, p_final, x_init, y_init, delta_t, lb_init, ub_init, verbose_level, N)
+function [x_init, y_init, runtime, etaRecord, numActiveBoundRecord] = pf_pc_mfcq(problem, p_init, p_final, x_init, y_init, delta_t, lb_init, ub_init, verbose_level, N)
 %PF_PC_MFCQ Summary of this function goes here
 % 
 % [OUTPUTARGS] = PF_PC_MFCQ(INPUTARGS) Explain usage here
@@ -25,7 +25,7 @@ p       = p_init;
 theprob = @(pp)problem(pp);
 prob    = theprob(p);
 t       = 0;
-elapsedqp = 0;
+runtime = [];
 numX    = size(x_init,1);
 x0      = zeros(numX,1);   
 if (verbose_level)
@@ -38,12 +38,16 @@ end
 % compute initial Eta
 global flagDt;
 flagDt = 0;   % THINK ABOUT THIS LATTER!
-
+global success;
+success = 1;
+runtime.total = 0;
 %% CHANGE THE ALGORITHM !
 % FIST CHECK oldEta value !
 etaRecord            = [];
 numActiveBoundRecord = [];
 activeBoundTol       = [];
+
+index = 0;
 while (t < 1)
     
     % calculate step s
@@ -53,7 +57,9 @@ while (t < 1)
     
     % compute the residual optimality at p_0
     [~,g,~,~,cin,~,~,Jeq,~,~,~] = prob.obj(x_init,y_init,p_0, N);    % obtain derivatives information
-    [oldEta, ~]                 = computeEta(Jeq, g, y_init, cin, activeBoundTol);
+    [oldEta, ~, numActiveBound] = computeEta(Jeq, g, y_init, cin, activeBoundTol);
+    fprintf('oldEta = %e \n',oldEta);
+    fprintf('Number of active bound constraints = %d \n',numActiveBound);
     
     % update bound constraint
     if(~isempty(lb_init))
@@ -65,9 +71,38 @@ while (t < 1)
     end
 
     % solve MFCQ predictor-corrector 
-    [x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound, activeBoundTol] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init);  % supply initial guess
-    %[x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound] = solvePredictorCorrector(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta);
-    elapsedqp = elapsedqp + qp_run;
+    %[x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound, activeBoundTol] = solveThreeSteps(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init);
+    %[x_init, y_init, qp_run, deltaT, success, etaData, numActiveBound, activeBoundTol] = solveThreeSteps1(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    %[x_init, y_init, qp_run, deltaT, success, etaData, ~, activeBoundTol] = solveThreeSteps1(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    %[x_init, y_init, StepsRt, deltaT, success, etaData, ~, activeBoundTol] = solveThreeSteps2(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    
+    % new logic: use MFCQ only if the number of active bound constraint
+    % greater than 150
+    % CHANGE NOT TO 150, CALCULATE AGAIN!!!
+%     if numActiveBound > 1500
+%         keyboard;
+%     end
+%     [x_init, y_init, StepsRt, deltaT, success, etaData, ~, activeBoundTol] = solveTwoStepsDistCstr(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    %if numActiveBound > 150
+    %if numActiveBound > 450
+    if numActiveBound > 225
+        [x_init, y_init, StepsRt, deltaT, success, etaData, ~, activeBoundTol] = solveThreeSteps2(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    else
+        [x_init, y_init, StepsRt, deltaT, success, etaData, ~, activeBoundTol] = solveTwoStepsDistCstr(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    end
+    
+    %[x_init, y_init, StepsRt, deltaT, success, etaData, ~, activeBoundTol] = solveThreeSteps2(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    %[x_init, y_init, StepsRt, deltaT, success, etaData, ~, activeBoundTol] = solveThreeSteps2(prob, x_init, y_init, step, lb, ub, N, x0, t, delta_t, p_0, p_t, oldEta, ub_init, g);
+    index = index + 1;
+    ycell{index} = y_init;
+    
+    %elapsedqp = elapsedqp + qp_run;
+    runtime.total     = runtime.total + StepsRt.correctRt + StepsRt.predictRt + StepsRt.jumpRt;
+    runtime.correctRt = StepsRt.correctRt;
+    runtime.predictRt = StepsRt.predictRt;
+    runtime.jumpRt    = StepsRt.jumpRt;
+    
+    % y_init should be a cell array!
     
     if (success == 1)
         
@@ -89,8 +124,8 @@ while (t < 1)
         % update deltaT
         delta_t = deltaT;
         % debug
-        fprintf("keyboard debug \n");
-        keyboard;
+        %fprintf("keyboard debug \n");
+        %keyboard;
     end
     
 %     if (qp_exit < 0) % QP is infeasible

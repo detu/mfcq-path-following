@@ -1,4 +1,4 @@
-function [Tall, xmeasureAll, uAll, ObjVal, primalPF, params, runtime, etaData, nABC] = pfNmpc(optProblem, system, mpciterations, N, T, tmeasure, xmeasure, u0, varargin)
+function [Tall, xmeasureAll, uAll, ObjVal, primalPF, params, runtime, etaData, nABC, activeChange] = pfNmpc(optProblem, system, mpciterations, N, T, tmeasure, xmeasure, u0, varargin)
 %PFNMPC Summary of this function goes here
 % 
 % Path-following based Nonlinear Model Predictive Control
@@ -28,6 +28,10 @@ runtime     = [];
 u_pf_opt    = [];
 x_pf_opt    = [];
 
+% measuring active set during the course of pf-NMPC iteration
+activeChange = zeros(mpciterations,1);
+countActive  = 0;
+
 load noise1pct.mat;
 z1 = xmeasure;
 % Start of the NMPC iteration
@@ -45,22 +49,44 @@ while(mpciter <= mpciterations)
     %   Obtain new initial value
     [t0, x0] = measureInitialValue ( tmeasure, xmeasure );
     
+%     % mesti cut buat x0 juga!
+    x0 = max(min(x0,1.0),0); % restrict to boundaries
+    if x0(1,1) > 0.1; x0(1,1) = 0.1; end
+    if x0(84,1) > 0.75; x0(84,1) = 0.75; end
+    if x0(84,1) < 0.74; x0(84,1) = 0.74; end
+    if x0(43,1) > 0.5; x0(43,1) = 0.5; end
+    if x0(43,1) < 0.5; x0(43,1) = 0.5; end
+    
+%     if x0(2,1) < 0.49; x0(2,1) = 0.49; end 
     
     % add measurement noise
     holdupNoise        = noise(:,mpciter);
     concentrationNoise = zeros(42,1);
     measNoise          = [concentrationNoise;holdupNoise];
-    %x0_measure         =  x0 + 0*measNoise;  % without noise
-    x0_measure         =  x0 + measNoise;
+    x0_measure         =  x0 + 0*measNoise;  % without noise
+    %x0_measure         =  x0 + measNoise;
     
     % check constraints on boundary
     x0_measure = max(min(x0_measure,1.0),0); % restrict to boundaries
-%     if x0_measure(1,1) > 0.1; x0_measure(1,1) = 0.1; end
-%     if x0_measure(84,1) > 0.7; x0_measure(84,1) = 0.7; end
+    if x0_measure(1,1) > 0.1; x0_measure(1,1) = 0.1; end
+    if x0_measure(84,1) > 0.75; x0_measure(84,1) = 0.75; end
+    if x0_measure(84,1) < 0.74; x0_measure(84,1) = 0.74; end
+    if x0_measure(43,1) > 0.5; x0_measure(43,1) = 0.5; end
+    if x0_measure(43,1) < 0.5; x0_measure(43,1) = 0.5; end
+    
     
     z1 = max(min(z1,1.0),0); % restrict to boundaries
-%     if z1(1,1) > 0.1; z1(1,1) = 0.1; end
-%     if z1(84,1) > 0.7; z1(84,1) = 0.7; end
+    if z1(1,1) > 0.1; z1(1,1) = 0.1; end
+    if z1(84,1) > 0.75; z1(84,1) = 0.75; end
+    if z1(84,1) < 0.74; z1(84,1) = 0.74; end
+    if z1(43,1) > 0.5; z1(43,1) = 0.5; end
+    if z1(43,1) < 0.5; z1(43,1) = 0.5; end
+
+
+
+%      dummyNoise         = noise(1:2,mpciter);   % SHOULD GENERATE OWN NOISE !!!
+%      x0_measure         =  x0 + dummyNoise;
+%      if x0_measure(2,1) < 0.49; x0_measure(2,1) = 0.49; end
 
 
     % advanced-step NMPC:
@@ -69,22 +95,52 @@ while(mpciter <= mpciterations)
     % re-arrange NLP solutions
     [~, x_nlp_opt] = plotStatesN(primalNLP, lb, ub, N);
     
-    p_init  = primalNLP(1:nx);        
+    p_init  = primalNLP(1:nx);
+    %p_init  = x0;
     p_final = x0_measure; 
     xstart  = primalNLP;
     ystart  = dualNLP;
     
+    % check if there is any active-set change here !
+    if (~isequal(p_init(1),0.1)) || (~isequal(p_final(1),0.1)) 
+        if (p_init(1) < 0.1) && (p_final(1) < 0.1)
+            countActive = 0;
+        else
+            countActive = countActive + 1;
+        end
+    end
+    if (~isequal(p_init(84),0.7)) || (~isequal(p_final(84),0.7))
+        if (p_init(84) < 0.7) && (p_final(84) < 0.7)
+            countActive = countActive + 0;
+        else
+            countActive = countActive + 1;
+        end
+    end
+    activeChange(mpciter,1) = countActive;
+    countActive             = 0;
+    
     % choose number of path-following step
-    delta_t = 0.5;   % initial deltaT
+    %delta_t = 0.5;   % initial deltaT OK with eta_max = 0.88 
+    %delta_t = 0.2;
     %delta_t = 0.25;
+    %delta_t = 0.1;
+    %delta_t = 0.05;
+    delta_t = 1;
     
     lb_init = lb;
     ub_init = ub;
     
     % NLP sensitivity (predictor-corrector)
-    %[primalPF, ~, elapsedqp] = jpredictor_licq_pure_3(@(p)distColACstr_pn(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N);
-    [primalPF, ~, elapsedqp, etaRecord, numActiveBoundRecord] = pf_pc_mfcq(@(p)distColACstr_mfcq(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N);
+    % with earlier CasADi 3.1.0
+    %[primalPF, ~, elapsedqp, etaRecord, numActiveBoundRecord] = pf_pc_mfcq(@(p)distColACstr_mfcq(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N);
+    % with CasADi version 3.4.5
+    [primalPF, ~, elapsedqp, etaRecord, numActiveBoundRecord] = pf_pc_mfcq(@(p)distColACstr_mfcqNew(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N);
     
+    % Implement new path-following without corrector step:
+    % 1. Predictor-corector QP
+    % 2. LP
+    %[primalPF, ~, elapsedqp, etaRecord, numActiveBoundRecord] = pf_pc_qp_mfcq(@(p)distColACstr_mfcqNew(p), p_init, p_final, xstart, ystart, delta_t, lb_init, ub_init, 0, N); 
+
     etaData = [etaData; etaRecord];
     nABC    = [nABC; numActiveBoundRecord];
      
@@ -99,10 +155,12 @@ while(mpciter <= mpciterations)
     
     % Apply control to process with optimized control from path-following
     % algorithm. 
-    x0                   = xmeasure;  % from the online step 
+    %x0                   = xmeasure;  % from the online step 
+    x0                   = x0_measure; % NEW CHANGE 28.09.2017
     [tmeasure, xmeasure] = applyControl(system, T, t0, x0, u_pf_opt);
     
     ObjVal(mpciter) = computeObjectiveFunctionValues(u_pf_opt(:,1),xmeasure); % USING ACTUAL STATE!
+    %ObjVal(mpciter) = computeObjFuncCstr(u_pf_opt(:,1),xmeasure); % CSTR only
     
     
     % collect variables
@@ -115,8 +173,7 @@ while(mpciter <= mpciterations)
     mpciter = mpciter+1;
 end
 
-xmeasureAll = reshape(xmeasureAll,84,mpciterations);  
-
+xmeasureAll = reshape(xmeasureAll,nx,mpciterations);  
 
 end
 
@@ -127,6 +184,7 @@ end
 
 function [tapplied, xapplied] = applyControl(system, T, t0, x0, u0)
     xapplied = dynamic(system, T, t0, x0, u0(:,1));
+    %xapplied = dynamic(system, T, t0, x0, round(u0(:,1),1));
     tapplied = t0+T;
 end
 
@@ -149,8 +207,8 @@ function [u, lamda, lbw, ubw, objVal, params] = solveOptimalControlProblem(optPr
    
     prob    = struct('f', J, 'x', vertcat(w{:}), 'g', vertcat(g{:}));
     options = struct;
-    %options.ipopt.tol       = 1e-12;
-    %options.ipopt.constr_viol_tol    = 1e-10; 
+    options.ipopt.tol                = 1e-12;
+    options.ipopt.constr_viol_tol    = 1e-10; 
     solver = nlpsol('solver', 'ipopt', prob, options);
 
     % Solve the NLP
@@ -158,10 +216,6 @@ function [u, lamda, lbw, ubw, objVal, params] = solveOptimalControlProblem(optPr
     sol   = solver('x0', w0, 'lbx', lbw, 'ubx', ubw, 'lbg', lbg, 'ubg', ubg);
     elapsednlp = toc(startnlp);
     fprintf('IPOPT solver runtime = %f\n',elapsednlp);
-    success = strcmp(solver.stats.return_status,'Infeasible_Problem_Detected');
-    if (success)
-        keyboard;
-    end
 
     u           = full(sol.x);
     lamda.lam_g = full(sol.lam_g);

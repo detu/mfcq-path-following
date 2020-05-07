@@ -14,14 +14,19 @@ function NMPCCstr
 % $Author: suwartad $	$Date: 2017/10/07 15:37:22 $	$Revision: 0.1 $
 % Copyright: Process Control Group - NTNU Trondheim 2017
 
+% TO DO:
+% - after 'keepgoingrank' if JAbc is empty, then do not solve LP ? 
+
+
 import casadi.* 
 format long;
 
-global N;
+global N k;
 % number of mpc iteration
 mpciterations = 100;
 % number of prediction horizon
-N             = 50;  
+N             = 50;
+%N             = 1;
 % sampling time
 T             = 1;  % [minute]
 % initial control and state
@@ -31,12 +36,19 @@ u0            = repmat(u0,1,N);
 tmeasure      = 0.0;
 xmeasure      = [0.9;0.6];
 
-% either call iNMPC 
-%[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
-%save cstrINmpc.mat xmeasureAll uAll;
+% % either call iNMPC 
+% [~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+% save cstrINmpc.mat xmeasureAll uAll runtime;
 
-[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
-save cstrPfNmpc.mat xmeasureAll_pf uAll_pf etaRecord numActiveBoundRecord;
+% %PF-PC from Slava and Johannes's paper
+[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord] = pfNmpcCstr(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+% save cstrPfNmpc.mat xmeasureAll_pf uAll_pf etaRecord numActiveBoundRecord runtime_pf;
+% %save cstrPfNmpc1.mat xmeasureAll_pf uAll_pf etaRecord numActiveBoundRecord;
+
+% PF-PC consisting of PC-QP and LP
+% [~, xmeasureAllQPLP, uAllQPLP, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecordQP, numActiveBoundRecordQP] = pfNmpcCstr(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
+% save cstrPfNmpcQPLP.mat xmeasureAllQPLP uAllQPLP etaRecordQP numActiveBoundRecordQP;
+% %save cstrPfNmpcQPLP1.mat xmeasureAllQPLP uAllQPLP etaRecordQP numActiveBoundRecordQP;
 
 keyboard;
 
@@ -271,3 +283,4 @@ function [J,g,w0,w,lbg,ubg,lbw,ubw,Xk,params,count,ssoftc] = iterateOnPrediction
         J = J + alpha*Jcontrol + gamma*Jstate + beta*Jecon;
     end
 end
+

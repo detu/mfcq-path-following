@@ -26,7 +26,11 @@ VB  = uc(2);
 % B   = 0.5;                          % Bottoms
 %F   = 1.5;
 F   = uc(3);
-F_0 = 0.3;                          % CSTR feedrate 1.1 after 1.0 
+
+global Uf;
+%F_0 = 0.3;                          % CSTR feedrate 1.1 after 1.0 
+F_0 = Uf;
+
 %F_0 = 0.4;
 %F_0 = uc(3);
 %zF  = 0.45;

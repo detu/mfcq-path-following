@@ -29,8 +29,9 @@ nu    = size(us,1);
 %load Qmax.mat;
 load Q.mat;
 Qmax = Q;
-c1  = -0.05; % noisy case
-lss = -0.256905910000000 + c1; %steady-state objective function value
+% c1  = -0.05; % noisy case
+% lss = -0.256905910000000 + c1; %steady-state objective function value
+lss = -0.256905910000000; %steady-state objective function value
 
 %J = (pf*F_0 + pV*uOpt(2) - pB*uOpt(5) - pD*uOpt(4)) + (Qmax(nx+1:nx+nu,1).*(uOpt - us))' * (uOpt - us) + (Qmax(1:nx,1).*(xActual - xs))' * (xActual - xs);
 Jecon    = (pf*F_0 + pV*uOpt(2) - pB*uOpt(5) - pD*uOpt(4));
