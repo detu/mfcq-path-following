@@ -123,6 +123,8 @@ end
 
 function [dXp, dYp, qp_exit, JAbc, activeBoundTol, activeIndex, elapsedqp] = solvePredictorCorrectorQP(Hm, Jeq, g, gOld, cin, step, dpe, lb, ub, y, oldEta)
 
+import casadi.* 
+
 % active bound constraints
 boundMultiplier    = y.lam_x;
 positiveBoundMult  = abs(boundMultiplier);
@@ -164,6 +166,20 @@ beq  = dpe*step + ceq;   %OK
 %     %lb(indB)     = -5e-4;   %OK
 %     lb(indB)     = -1e-3;
 % end
+
+
+% CASADI QP low-level setup
+H    = Hm * DM.eye(size(Hm,1));
+A    = Aeq .* DM.ones(size(Aeq));
+qp   = struct;
+qp.h = H.sparsity();
+qp.a = A.sparsity();
+gc   = f .* DM.ones(size(f));
+S    = conic('S','osqp',qp);
+tic;
+r    = S('h', H, 'g', gc, 'a', A, 'lba', beq, 'uba', beq, 'lbx', lb, 'ubx', ub);
+toc;
+x_opt = r.x;
 
 % TOMLAB setup
 % CHANGE H here ! H should include the Hessian of the constraints ! (same
