@@ -88,6 +88,7 @@ f_gn      = 0.5*(x'*(j_out)'*j_out*x) + jf_out*x;
 
 qp = struct('x',x, 'f',f_gn,'g',[g_l;h_l],'p',xk);
 solver = qpsol('solver', 'qpoases', qp);
+%solver = qpsol('solver','osqp',qp);
 
 % SQP solver
 max_it = 100;

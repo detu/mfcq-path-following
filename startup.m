@@ -13,5 +13,6 @@ warning off;
 
 if(isunix)
    addpath(genpath('/home/detu/work/casadi355'));
+%   addpath(genpath('/home/detu/coding/work/osqp'));
 end
 

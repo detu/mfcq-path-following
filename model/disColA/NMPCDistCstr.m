@@ -38,9 +38,9 @@ xGuess = Xopt;
 %[~, xmeasureAll, uAll, obj, optRes, params, runtime] = iNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 
 % new iNmpcDual that collect dual variable as well 
-[~, xmeasureAll, uAll, obj, primalRes, dualRes, params, runtime] = iNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
+%[~, xmeasureAll, uAll, obj, primalRes, dualRes, params, runtime] = iNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
 % save iNmpcDual.mat xmeasureAll uAll obj primalRes dualRes params runtime;
-save results.mat xmeasureAll uAll dualRes runtime;
+%save results.mat xmeasureAll uAll dualRes runtime;
 
 % compute number of active-bound constraints
 %[~, xmeasureAll, uAll, obj, optRes, params, runtime, numActiveBoundRecord] = iNmpcActiveBound(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
@@ -49,7 +49,7 @@ save results.mat xmeasureAll uAll dualRes runtime;
 % or pf-NMPC
 %[~, xmeasureAll_pf, uAll_pf, obj_pf, optRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord, nActiveChange] = pfNmpc(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
 
-%[~, xmeasureAll_pf, uAll_pf, obj_pf, primalRes_pf, dualRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord, nActiveChange] = pfNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
+[~, xmeasureAll_pf, uAll_pf, obj_pf, primalRes_pf, dualRes_pf, params_pf, runtime_pf, etaRecord, numActiveBoundRecord, nActiveChange] = pfNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0, xGuess);
 %save pfNmpcDual.mat xmeasureAll_pf uAll_pf obj_pf primalRes_pf dualRes_pf params_pf runtime_pf etaRecord numActiveBoundRecord nActiveChange;
 
 %[~, xmeasureAll_pfm, uAll_pfm, obj_pfm, primalRes_pfm, dualRes_pfm, params_pfm, runtime_pfm, etaRecordm, numActiveBoundRecordm, nActiveChangem] = pfNmpcDual(@optProblem, @system, mpciterations, N, T, tmeasure, xmeasure, u0);
