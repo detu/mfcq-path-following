@@ -167,48 +167,64 @@ beq  = dpe*step + ceq;   %OK
 %     lb(indB)     = -1e-3;
 % end
 
+x0     = sparse(zeros(size(lb,1),1));
+lambda = sparse(zeros(size(Aeq,1),1));
+beq    = sparse(beq);
+lb     = sparse(lb);
+ub     = sparse(ub);
 
-% CASADI QP low-level setup
-H    = Hm * DM.eye(size(Hm,1));
-A    = Aeq .* DM.ones(size(Aeq));
-qp   = struct;
-qp.h = H.sparsity();
-qp.a = A.sparsity();
-gc   = f .* DM.ones(size(f));
-S    = conic('S','osqp',qp);
-tic;
-r    = S('h', H, 'g', gc, 'a', A, 'lba', beq, 'uba', beq, 'lbx', lb, 'ubx', ub);
-toc;
-x_opt = r.x;
 
-% TOMLAB setup
-% CHANGE H here ! H should include the Hessian of the constraints ! (same
-% as in the Corrector Step)
-Prob   = qpAssign(Hm, f, Aeq, beq, beq, lb, ub);
+startqp   = tic;
+xsol      = qpAL(Hm,f,Aeq,beq,lb,ub,x0,lambda);
+elapsedqp = toc(startqp);
 
-Prob.optParam.eps_x = 1e-7;
-Prob.optParam.fTol  = 1e-7;
-Prob.optParam.xTol  = 1e-7;
-%startqp  = tic;
-Result = tomRun('qp-minos', Prob, 1);
+keyboard;
+dXp       = xsol;
+dYp.lam_x = zeros(numX,1);
+dYp.lam_g = zeros(numY,1);
+qp_exit   = 0;  % HARDCODE for testing purposes
 
-%elapsedqp = toc(startqp);
-elapsedqp = Result.REALtime;
-fprintf('QP solver runtime: %f\n',elapsedqp);
-qp_exit = Result.ExitFlag;
-if qp_exit == 0
-    dXp       = Result.x_k;
-    %qp_val  = Result.f_k;
-    dYp.lam_x = -Result.v_k(1:numX);
-    dYp.lam_g = -Result.v_k(numX+1:end);
-    
-else
-    keyboard;
-    dXp       = zeros(numX,1);
-    dYp.lam_x = zeros(numX,1);
-    dYp.lam_g = zeros(numY,1);
-    qp_exit   = 0;  % HARDCODE for testing purposes
-end
+% % CASADI QP low-level setup
+% H    = Hm * DM.eye(size(Hm,1));
+% A    = Aeq .* DM.ones(size(Aeq));
+% qp   = struct;
+% qp.h = H.sparsity();
+% qp.a = A.sparsity();
+% gc   = f .* DM.ones(size(f));
+% S    = conic('S','osqp',qp);
+% tic;
+% r    = S('h', H, 'g', gc, 'a', A, 'lba', beq, 'uba', beq, 'lbx', lb, 'ubx', ub);
+% toc;
+% x_opt = r.x;
+% 
+% % TOMLAB setup
+% % CHANGE H here ! H should include the Hessian of the constraints ! (same
+% % as in the Corrector Step)
+% Prob   = qpAssign(Hm, f, Aeq, beq, beq, lb, ub);
+% 
+% Prob.optParam.eps_x = 1e-7;
+% Prob.optParam.fTol  = 1e-7;
+% Prob.optParam.xTol  = 1e-7;
+% %startqp  = tic;
+% Result = tomRun('qp-minos', Prob, 1);
+% 
+% %elapsedqp = toc(startqp);
+% elapsedqp = Result.REALtime;
+% fprintf('QP solver runtime: %f\n',elapsedqp);
+% qp_exit = Result.ExitFlag;
+% if qp_exit == 0
+%     dXp       = Result.x_k;
+%     %qp_val  = Result.f_k;
+%     dYp.lam_x = -Result.v_k(1:numX);
+%     dYp.lam_g = -Result.v_k(numX+1:end);
+%     
+% else
+%     keyboard;
+%     dXp       = zeros(numX,1);
+%     dYp.lam_x = zeros(numX,1);
+%     dYp.lam_g = zeros(numY,1);
+%     qp_exit   = 0;  % HARDCODE for testing purposes
+% end
 
 end
 

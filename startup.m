@@ -13,6 +13,7 @@ warning off;
 
 if(isunix)
    addpath(genpath('/home/detu/work/casadi355'));
+   addpath('/home/detu/coding/work/QPSolvers/ALM/build');
 %   addpath(genpath('/home/detu/coding/work/osqp'));
 end
 
